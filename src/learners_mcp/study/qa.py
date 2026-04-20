@@ -14,7 +14,6 @@ scope='section'  → a single section, specified by section_id. If section_id
 
 from __future__ import annotations
 
-from ..config import MODEL_SONNET
 from ..db import DB
 from ..llm.client import LLM, cached_source, plain
 
@@ -76,7 +75,7 @@ async def answer_from_material(
     blocks = context_blocks + plain(user)
 
     return await llm.complete(
-        model=MODEL_SONNET,
+        task="qa",
         system=ANSWER_SYSTEM,
         blocks=blocks,
         max_tokens=2048,

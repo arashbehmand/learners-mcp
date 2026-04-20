@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from ..config import MODEL_SONNET
 from ..db import DB
 from ..llm.client import LLM, plain
 from ..llm.prompts import SUGGEST_CARDS_SYSTEM, SUGGEST_CARDS_USER_TEMPLATE
@@ -47,7 +46,7 @@ async def suggest_flashcards(
 
     user = SUGGEST_CARDS_USER_TEMPLATE.format(n=n, section_ref=section.order_index)
     payload = await llm.complete_json(
-        model=MODEL_SONNET,
+        task="flashcards",
         system=SUGGEST_CARDS_SYSTEM,
         blocks=plain(user + "\n\n" + formatted),
         max_tokens=1024,

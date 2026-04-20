@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 
-from ..config import MODEL_SONNET
 from ..db import DB
 from ..llm.client import LLM, plain
 from ..llm.prompts import COMPLETION_REPORT_SYSTEM, COMPLETION_REPORT_USER_TEMPLATE
@@ -42,7 +41,7 @@ async def generate_completion_report(
     formatted = format_context_for_completion(context)
 
     report_md = await llm.complete(
-        model=MODEL_SONNET,
+        task="completion_report",
         system=COMPLETION_REPORT_SYSTEM,
         blocks=plain(COMPLETION_REPORT_USER_TEMPLATE + "\n\n" + formatted),
         max_tokens=1500,

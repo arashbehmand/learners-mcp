@@ -1,0 +1,53 @@
+# learners-mcp model configuration
+# Copy to ~/.learners-mcp/llm.yaml (or point LEARNERS_MCP_LLM_CONFIG at it)
+# All sections are optional — omit to keep built-in Anthropic defaults.
+
+profiles:
+  # Three built-in tiers. Override any or add new ones.
+  fast:
+    model: claude-haiku-4-5-20251001
+    params: {}
+    prompt_cache: auto  # auto|on|off
+
+  default:
+    model: openrouter/anthropic/claude-sonnet-4.6
+    params:
+      reasoning_effort: low  # Anthropic extended thinking (budget_tokens) or OpenAI o-series effort
+    prompt_cache: auto  # auto-detects Anthropic family → caching on
+
+  oneshot:
+    model: claude-opus-4-7
+    params: {}
+
+  # Example: a cheap OpenAI-backed profile for quick tasks
+  # cheap:
+  #   model: gpt-4o-mini
+  #   params: {}
+  #   prompt_cache: off  # OpenAI uses content-hash caching, not block-level
+
+routes:
+  # Map each of the 11 tasks to a profile name.
+  # Defaults shown — only override what you want to change.
+  notes_map: fast
+  notes_tldr: fast
+  focus_brief: fast
+  notes_reduce: default
+  notes_polish: default
+  rolling_summary: default
+  qa: default
+  phase_evaluation: default
+  completion_report: default
+  flashcards: default
+  learning_map: oneshot
+
+  # Example: route QA to a cheap profile for cost savings:
+  # qa: cheap
+
+# Optional: register OpenAI-compatible custom providers with LiteLLM
+# custom_providers:
+#   myproxy:
+#     api_base: https://proxy.example.com/v1
+#     api_key_env: MY_PROXY_API_KEY  # name of an env var holding the key
+#     litellm_provider: openai
+#     models:
+#       myproxy/fast-model: { max_tokens: 128000 }

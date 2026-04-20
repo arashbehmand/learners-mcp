@@ -193,3 +193,69 @@ def test_empty_phase_metadata_does_not_count_as_studied(tmp_path):
     db.update_phase_data(s1, "preview", {"response": ""})  # empty — doesn't count
     verdict = check_prerequisites(db, s2)
     assert verdict["verdict"] == "review_required"
+
+
+# ---------- #4: MODEL_* constants must not be imported in source ----------
+
+
+def test_no_model_constants_imported():
+    """No production source file should import MODEL_HAIKU, MODEL_SONNET, or MODEL_OPUS."""
+    import ast
+    import pathlib
+
+    src_root = pathlib.Path(__file__).parent.parent / "src" / "learners_mcp"
+    forbidden = {"MODEL_HAIKU", "MODEL_SONNET", "MODEL_OPUS"}
+    violations = []
+
+    for py_file in src_root.rglob("*.py"):
+        tree = ast.parse(py_file.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.ImportFrom, ast.Import)):
+                names = [alias.name for alias in node.names]
+                found = forbidden & set(names)
+                if found:
+                    violations.append(f"{py_file.relative_to(src_root)}: imports {found}")
+
+    assert not violations, "Forbidden MODEL_* imports found:\n" + "\n".join(violations)
+
+
+# ---------- #5: llm.complete / complete_json calls must use valid task names ----------
+
+
+def test_llm_calls_use_valid_tasks():
+    """Every llm.complete() / llm.complete_json() call in source must use a task= kwarg
+    whose value is a string literal that appears in TASKS."""
+    import ast
+    import pathlib
+    from learners_mcp.llm.profiles import TASKS
+
+    src_root = pathlib.Path(__file__).parent.parent / "src" / "learners_mcp"
+    violations = []
+
+    for py_file in src_root.rglob("*.py"):
+        # Skip the llm package itself (client.py defines complete, not calls it)
+        if "llm" in py_file.parts:
+            continue
+        source = py_file.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            # Match llm.complete(...) or llm.complete_json(...)
+            func = node.func
+            if not (isinstance(func, ast.Attribute) and func.attr in ("complete", "complete_json")):
+                continue
+            # Find the task= keyword argument
+            task_kw = next((kw for kw in node.keywords if kw.arg == "task"), None)
+            if task_kw is None:
+                violations.append(f"{py_file.name}:{node.lineno} — complete() missing task= kwarg")
+                continue
+            # The value should be a string literal
+            if not isinstance(task_kw.value, ast.Constant) or not isinstance(task_kw.value.value, str):
+                violations.append(f"{py_file.name}:{node.lineno} — task= is not a string literal")
+                continue
+            task_name = task_kw.value.value
+            if task_name not in TASKS:
+                violations.append(f"{py_file.name}:{node.lineno} — unknown task {task_name!r} (valid: {sorted(TASKS)})")
+
+    assert not violations, "LLM call site issues:\n" + "\n".join(violations)

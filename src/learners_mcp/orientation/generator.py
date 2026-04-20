@@ -16,7 +16,6 @@ import json
 import logging
 from typing import Any
 
-from ..config import MODEL_HAIKU, MODEL_OPUS
 from ..llm.client import LLM, cached_source, plain
 from ..llm.prompts import (
     FOCUS_BRIEF_SYSTEM,
@@ -65,7 +64,7 @@ async def generate_material_map(
     ) + plain("\n\n" + user_text)
 
     payload = await llm.complete_json(
-        model=MODEL_OPUS,
+        task="learning_map",
         system=LEARNING_MAP_SYSTEM,
         blocks=blocks,
         max_tokens=4096,
@@ -95,7 +94,7 @@ async def generate_focus_brief(
     ) + plain("\n\n" + user_text)
 
     return await llm.complete_json(
-        model=MODEL_HAIKU,
+        task="focus_brief",
         system=FOCUS_BRIEF_SYSTEM,
         blocks=blocks,
         max_tokens=1024,

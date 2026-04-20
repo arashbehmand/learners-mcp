@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 
-from ..config import CHUNK_OVERLAP, CHUNK_SIZE, MODEL_HAIKU, MODEL_SONNET
+from ..config import CHUNK_OVERLAP, CHUNK_SIZE
 from ..ingestion.chunker import chunk_for_map_reduce
 from ..llm.client import LLM, cached_source, plain
 from ..llm.prompts import (
@@ -63,7 +63,7 @@ async def extract_notes(
 
         map_user = MAP_USER_TEMPLATE.format(prior_tldr=tldr or "(none)", section_ref=section_ref)
         map_out = await llm.complete(
-            model=MODEL_HAIKU,
+            task="notes_map",
             system=MAP_SYSTEM,
             blocks=chunk_blocks + plain("\n\n" + map_user),
             max_tokens=4096,
@@ -73,7 +73,7 @@ async def extract_notes(
 
         tldr_user = TLDR_USER_TEMPLATE.format(prior_tldr=tldr or "(none)")
         tldr = await llm.complete(
-            model=MODEL_HAIKU,
+            task="notes_tldr",
             system=TLDR_SYSTEM,
             blocks=chunk_blocks + plain("\n\n" + tldr_user),
             max_tokens=1024,
@@ -82,7 +82,7 @@ async def extract_notes(
 
     reduce_user = REDUCE_USER_TEMPLATE.format(notes="\n\n---\n\n".join(mapped))
     reduced = await llm.complete(
-        model=MODEL_SONNET,
+        task="notes_reduce",
         system=REDUCE_SYSTEM,
         blocks=plain(reduce_user),
         max_tokens=8192,
@@ -91,7 +91,7 @@ async def extract_notes(
 
     polish_user = CONSISTENCY_USER_TEMPLATE.format(notes=reduced)
     polished = await llm.complete(
-        model=MODEL_SONNET,
+        task="notes_polish",
         system=CONSISTENCY_SYSTEM,
         blocks=plain(polish_user),
         max_tokens=8192,
