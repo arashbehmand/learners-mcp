@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from ..config import MODEL_SONNET
 from ..db import DB
 from ..llm.client import LLM, cached_source, plain
 from ..llm.prompts import EVALUATE_PHASE_SYSTEM, EVALUATE_PHASE_USER_TEMPLATE
@@ -58,7 +57,7 @@ async def evaluate_phase_response(
         f"\n\n## Learner's {phase}-phase response\n\n{response}"
     )
     analysis = await llm.complete_json(
-        model=MODEL_SONNET,
+        task="phase_evaluation",
         system=EVALUATE_PHASE_SYSTEM,
         blocks=context_blocks + plain(user),
         max_tokens=2048,

@@ -11,7 +11,8 @@ readme = "README.md"
 license = { text = "MIT" }
 dependencies = [
     "mcp>=1.2.0",
-    "anthropic>=0.40.0",
+    "litellm>=1.63.0,<2",
+    "pyyaml>=6.0",
     "markitdown>=0.0.1",
     "langchain-text-splitters>=0.3.0",
     "genanki>=0.13.0",

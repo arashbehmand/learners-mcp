@@ -15,6 +15,53 @@ MCP server that turns any source material into a guided learning experience:
 
 Host-agnostic: works with any MCP-capable agent (Claude Desktop, Claude Code, Codex, Gemini, Cursor, Zed, Continue, etc.).
 
+## Configuring models
+
+By default learners-mcp uses Anthropic models (haiku for fast tasks, sonnet for most work, opus for the learning map). Copy `examples/llm.yaml` to `~/.learners-mcp/llm.yaml` to change models, providers, or per-task routing.
+
+### YAML structure
+
+```yaml
+profiles:
+  default:
+    model: openrouter/anthropic/claude-sonnet-4.6
+    params:
+      reasoning_effort: low
+    prompt_cache: auto  # auto|on|off
+
+routes:
+  qa: default
+  learning_map: oneshot
+  # ... (11 tasks total — see examples/llm.yaml for full list)
+```
+
+### Supported providers
+
+Any provider supported by [LiteLLM](https://docs.litellm.ai/docs/providers): Anthropic, OpenRouter, OpenAI, Gemini, Bedrock, Vertex, and custom OpenAI-compatible endpoints.
+
+Set the matching API key in your environment — LiteLLM reads them automatically:
+`ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`.
+
+### The 11 tasks and default profiles
+
+| Task | Default profile | Used for |
+|------|----------------|----------|
+| `notes_map`, `notes_tldr`, `focus_brief` | `fast` (haiku) | Per-chunk work, high volume |
+| `notes_reduce`, `notes_polish`, `rolling_summary`, `qa`, `phase_evaluation`, `completion_report`, `flashcards` | `default` (sonnet) | Most analytic work |
+| `learning_map` | `oneshot` (opus) | Material-level orientation, one call |
+
+### Env overrides
+
+Override without editing the YAML:
+- `LEARNERS_MCP_MODEL_DEFAULT=gpt-4o-mini` — change the model for a profile
+- `LEARNERS_MCP_PARAMS_DEFAULT='{"reasoning_effort":"low"}'` — change params (JSON)
+- `LEARNERS_MCP_ROUTE_QA=fast` — re-route a task to a different profile
+- `LEARNERS_MCP_LLM_CONFIG=/path/to/llm.yaml` — use a custom config path
+
+### Prompt caching
+
+For Anthropic-family models (including via OpenRouter), `cache_control` blocks are preserved and caching applies automatically. Non-Anthropic models (OpenAI, Gemini, etc.) use flat text — no block-level caching, so map-reduce pipelines cost more. Set `prompt_cache: on` to force pass-through if you know your proxy supports it.
+
 ## Install
 
 ```bash

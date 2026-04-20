@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 
-from ..config import MODEL_SONNET, ROLLING_CONTEXT_MAX_CHARS
+from ..config import ROLLING_CONTEXT_MAX_CHARS
 from ..db import DB
 from ..llm.client import LLM, plain
 from ..llm.prompts import ROLLING_SUMMARY_SYSTEM, ROLLING_SUMMARY_USER_TEMPLATE
@@ -49,7 +49,7 @@ async def ensure_rolling_summary(db: DB, llm: LLM, section_id: int) -> str | Non
         order_index=section.order_index,
     )
     out = await llm.complete(
-        model=MODEL_SONNET,
+        task="rolling_summary",
         system=ROLLING_SUMMARY_SYSTEM,
         blocks=plain(user + "\n\nSection content:\n\n" + section.content),
         max_tokens=2048,
