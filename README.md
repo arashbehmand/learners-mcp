@@ -15,6 +15,122 @@ MCP server that turns any source material into a guided learning experience:
 
 Host-agnostic: works with any MCP-capable agent (Claude Desktop, Claude Code, Codex, Gemini, Cursor, Zed, Continue, etc.).
 
+---
+
+## Quick Start
+
+### What you need
+
+- **Python 3.10 or newer** — the runtime that powers the server.
+- **Claude Desktop** (or another MCP-compatible app).
+- **An API key** from Anthropic (or another provider — see [Configuring models](#configuring-models) below).
+
+---
+
+### 1. Check (or install) Python
+
+**macOS / Linux** — open Terminal and run:
+```
+python3 --version
+```
+You need `Python 3.10` or higher. If it's missing or older, download the latest from [python.org](https://www.python.org/downloads/).
+
+**Windows** — open Command Prompt (search for "cmd" in the Start menu) and run:
+```
+python --version
+```
+If Python isn't installed, download it from [python.org](https://www.python.org/downloads/). During install, tick **"Add Python to PATH"** — this is easy to miss and will cause problems if skipped.
+
+---
+
+### 2. Install learners-mcp
+
+Open a terminal (macOS/Linux: Terminal; Windows: Command Prompt or PowerShell) and run:
+
+**macOS / Linux:**
+```bash
+pip3 install learners-mcp
+```
+
+**Windows:**
+```
+pip install learners-mcp
+```
+
+This installs the `learners-mcp` command on your system.
+
+---
+
+### 3. Get an API key
+
+Go to [console.anthropic.com](https://console.anthropic.com), sign up or log in, and create an API key. It will look like `sk-ant-...`. Copy it — you'll need it in the next step.
+
+---
+
+### 4. Register with Claude Desktop
+
+Find and open the Claude Desktop config file in any text editor (Notepad on Windows, TextEdit on macOS):
+
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** press **Win + R**, type `%APPDATA%\Claude`, press Enter, then open `claude_desktop_config.json`
+
+If the file is empty or doesn't exist, create it with exactly this content (replace the key with yours):
+
+```json
+{
+  "mcpServers": {
+    "learners": {
+      "command": "learners-mcp",
+      "env": { "ANTHROPIC_API_KEY": "sk-ant-..." }
+    }
+  }
+}
+```
+
+If the file already has other servers, add the `"learners"` block inside the existing `"mcpServers"` section — don't replace what's already there.
+
+**Restart Claude Desktop.** The learners server should appear in the tools panel (the hammer/plug icon).
+
+---
+
+### 5. Load your first book or PDF
+
+Open a chat in Claude Desktop and say something like:
+
+> Load this PDF for studying: /Users/yourname/Documents/my-book.pdf
+
+On Windows the path looks like `C:\Users\yourname\Documents\my-book.pdf`.
+
+Claude will ingest the file and return a confirmation. Then ask:
+
+> Prepare it — generate the learning map, focus briefs, and notes.
+
+This takes one to two minutes depending on file size. When it finishes, ask:
+
+> Show me the learning map.
+
+You'll get a structured overview: key concepts, difficulty, time estimate, and a suggested reading path. From there, ask Claude to start a section and it will walk you through the four-phase study loop — Preview, Explain, Question, and Anchor (spaced-repetition flashcards).
+
+You can also load a URL or a YouTube video URL the same way:
+
+> Load this for studying: https://en.wikipedia.org/wiki/Thermodynamics
+
+---
+
+### Troubleshooting
+
+**"command not found: learners-mcp"** — Python's scripts directory isn't on your PATH. Try closing and reopening the terminal after install. On Windows, re-run the Python installer and make sure "Add to PATH" is checked.
+
+**"API key missing" or requests failing** — check that the key in `claude_desktop_config.json` starts with `sk-ant-` and has no extra spaces or quote characters around it. Restart Claude Desktop after any edit to that file.
+
+**Learners server not showing up in Claude Desktop** — the JSON file likely has a syntax error (a missing comma or brace). Paste its contents into [jsonlint.com](https://jsonlint.com) to find the problem.
+
+**To start completely fresh** — delete the data folder:
+- macOS/Linux: `~/.learners-mcp/`
+- Windows: `%USERPROFILE%\.learners-mcp\`
+
+---
+
 ## Configuring models
 
 By default learners-mcp uses Anthropic models (haiku for fast tasks, sonnet for most work, opus for the learning map). Copy `examples/llm.yaml` to `~/.learners-mcp/llm.yaml` to change models, providers, or per-task routing.
@@ -62,16 +178,16 @@ Override without editing the YAML:
 
 For Anthropic-family models (including via OpenRouter), `cache_control` blocks are preserved and caching applies automatically. Non-Anthropic models (OpenAI, Gemini, etc.) use flat text — no block-level caching, so map-reduce pipelines cost more. Set `prompt_cache: on` to force pass-through if you know your proxy supports it.
 
-## Install
+## Developer install
 
 ```bash
-pip install -e .
+pip install -e ".[dev]"   # editable + test deps
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 ## Register with a host
 
-**Claude Desktop** — `claude_desktop_config.json`:
+**Claude Desktop** (`claude_desktop_config.json` — see [Quick Start](#quick-start) for file location):
 ```json
 {
   "mcpServers": {
@@ -88,7 +204,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 { "mcpServers": { "learners": { "command": "learners-mcp" } } }
 ```
 
-Other MCP hosts (Codex, Gemini CLI, Cursor, Zed, Continue) follow the same `command + env` pattern — consult their docs for the exact config file.
+Other MCP hosts (Codex, Gemini CLI, Cursor, Zed, Continue) use the same `command + env` pattern — consult their docs for the exact config file location.
 
 ## Surface
 

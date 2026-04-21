@@ -60,7 +60,7 @@ def test_weekly_report_shape(tmp_path):
     mid = db.create_material("D", "txt", None, content_hash("w1"))
     sid = db.create_section(mid, "A", "body", 1)
     db.update_phase_data(sid, "preview", {"response": "r", "updated_at": _stamp(date(2026, 4, 18))})
-    db.create_flashcard(mid, sid, "Q", "A")
+    db.create_flashcard(mid, sid, "Q", "A", created_at=datetime(2026, 4, 18, 12, 0, tzinfo=timezone.utc))
 
     rep = weekly_report(db, today=date(2026, 4, 19))
     assert "window_start" in rep and "window_end" in rep

@@ -374,8 +374,9 @@ class DB:
         section_id: int | None,
         question: str,
         answer: str,
+        created_at: datetime | None = None,
     ) -> int:
-        now = datetime.now(timezone.utc)
+        now = created_at or datetime.now(timezone.utc)
         with self._connect() as conn:
             cur = conn.execute(
                 "INSERT INTO flashcards(material_id, section_id, question, answer, "
