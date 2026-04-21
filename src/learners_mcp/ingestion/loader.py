@@ -18,7 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-SUPPORTED_SUFFIXES = {".pdf", ".epub", ".docx", ".txt", ".md", ".markdown"}
+TEXT_SUFFIXES = {".txt", ".md", ".markdown"}
+SUPPORTED_SUFFIXES = {".pdf", ".epub", ".docx", *TEXT_SUFFIXES}
 
 YT_HOSTS = ("youtube.com", "youtu.be", "m.youtube.com")
 
@@ -58,6 +59,17 @@ def _load_file(source: str, title: str | None) -> LoadedMaterial:
     if path.suffix.lower() not in SUPPORTED_SUFFIXES:
         raise ValueError(
             f"unsupported file type {path.suffix!r}. Supported: {sorted(SUPPORTED_SUFFIXES)}"
+        )
+
+    if path.suffix.lower() in TEXT_SUFFIXES:
+        text = path.read_text(encoding="utf-8-sig")
+        if not text.strip():
+            raise ValueError(f"text file is empty: {path}")
+        return LoadedMaterial(
+            title=title or path.stem,
+            text=text,
+            source_type=path.suffix.lstrip(".").lower() or "text",
+            source_ref=str(path),
         )
 
     from markitdown import MarkItDown  # type: ignore[import-not-found]

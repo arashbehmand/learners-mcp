@@ -6,6 +6,7 @@ tests don't hit the network or require large dependencies at runtime.
 
 from __future__ import annotations
 
+import sys
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -44,6 +45,27 @@ def test_load_text_happy_path():
 def test_load_text_rejects_empty():
     with pytest.raises(ValueError):
         load_text("   ", title="Empty")
+
+
+def test_load_reads_plain_text_files_without_markitdown(tmp_path, monkeypatch):
+    path = tmp_path / "book.txt"
+    path.write_text("Chapter 1\n\nDown the Rabbit-Hole", encoding="utf-8")
+
+    def fail_markitdown():
+        raise AssertionError("plain text files should not use MarkItDown")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "markitdown",
+        SimpleNamespace(MarkItDown=fail_markitdown),
+    )
+
+    lm = load(str(path), title=None)
+
+    assert lm.title == "book"
+    assert lm.source_type == "txt"
+    assert lm.source_ref == str(path.resolve())
+    assert "Down the Rabbit-Hole" in lm.text
 
 
 def test_load_routes_url_to_markitdown():
