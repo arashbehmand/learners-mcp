@@ -27,6 +27,8 @@ from .db import DB
 from .db import content_hash as hash_text
 from .export.anki import export_apkg as svc_export_apkg
 from .export.anki import export_csv as svc_export_csv
+from .export.artifacts import auto_export_markdown_artifacts as svc_auto_export_artifacts
+from .export.artifacts import export_material_artifacts as svc_export_material_artifacts
 from .export.markdown import export_notes_markdown as svc_export_notes
 from .export.portable import export_project as svc_export_project
 from .export.portable import import_project as svc_import_project
@@ -160,6 +162,34 @@ def _section_brief(s) -> dict[str, Any]:
     }
 
 
+def _with_artifacts(
+    payload: dict[str, Any],
+    material_id: int,
+    *,
+    study_plan: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Attach best-effort Markdown mirror metadata to a tool response."""
+    try:
+        artifact = svc_auto_export_artifacts(
+            _get_db(),
+            material_id,
+            study_plan=study_plan,
+        )
+        if artifact:
+            payload["artifact_dir"] = artifact["artifact_dir"]
+            payload["updated_files"] = artifact["updated_files"]
+    except Exception as exc:
+        payload["artifact_warning"] = f"{type(exc).__name__}: {exc}"
+    return payload
+
+
+def _material_id_for_section(section_id: int) -> int:
+    s = _get_db().get_section(section_id)
+    if s is None:
+        raise KeyError(f"section {section_id} not found")
+    return s.material_id
+
+
 # --------------------- tools: ingestion + preparation ---------------------
 
 
@@ -207,13 +237,13 @@ async def ingest_material(
             )
             prep_status = {"status": "not_started", "reason": str(exc)}
 
-    return {
+    return _with_artifacts({
         "material_id": material_id,
         "sections_detected": len(sections),
         "title": loaded.title,
         "source_type": loaded.source_type,
         "preparation": prep_status,
-    }
+    }, material_id)
 
 
 @mcp.tool(
@@ -230,7 +260,8 @@ async def prepare_material(
 ) -> dict[str, Any]:
     db = _get_db()
     llm = _get_llm()
-    return await pipeline_prepare(db, llm, material_id, scope=scope, force=force)
+    report = await pipeline_prepare(db, llm, material_id, scope=scope, force=force)
+    return _with_artifacts(report, material_id)
 
 
 @mcp.tool(
@@ -357,7 +388,7 @@ async def start_section(section_id: int) -> dict[str, Any]:
     await ensure_rolling_summary(db, _get_llm(), section_id)
     s = db.get_section(section_id)
 
-    return {
+    return _with_artifacts({
         "section": _section_brief(s),
         "content": s.content,
         "focus_brief": s.focus_brief,
@@ -368,7 +399,7 @@ async def start_section(section_id: int) -> dict[str, Any]:
         ),
         "rolling_summary": s.rolling_summary,
         "phase_data": s.phase_data,
-    }
+    }, s.material_id)
 
 
 @mcp.tool(
@@ -400,7 +431,10 @@ def record_phase_response(
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     db.update_phase_data(section_id, phase, merged)
-    return {"ok": True, "warning": validation.warning, "phase": phase}
+    return _with_artifacts(
+        {"ok": True, "warning": validation.warning, "phase": phase},
+        s.material_id,
+    )
 
 
 @mcp.tool(
@@ -433,13 +467,13 @@ async def complete_phase(section_id: int, phase: str) -> dict[str, Any]:
         except Exception as exc:  # don't fail the completion if the report errors
             log.warning("completion report failed for section %d: %s", section_id, exc)
 
-    return {
+    return _with_artifacts({
         "ok": True,
         "phase_completed": phase,
         "current_phase": advanced_to or "anchor",
         "section_completed": phase == "anchor",
         "completion_report": completion_report,
-    }
+    }, s.material_id)
 
 
 # --------------------- tools: flashcards ---------------------
@@ -468,7 +502,10 @@ def add_flashcard(section_id: int, question: str, answer: str) -> dict[str, Any]
     fid = db.create_flashcard(
         material_id=s.material_id, section_id=section_id, question=question, answer=answer
     )
-    return {"flashcard_id": fid, "section_id": section_id}
+    return _with_artifacts(
+        {"flashcard_id": fid, "section_id": section_id},
+        s.material_id,
+    )
 
 
 @mcp.tool(
@@ -509,7 +546,12 @@ def list_flashcards(
     ),
 )
 def review_flashcard(flashcard_id: int, knew_it: bool) -> dict[str, Any]:
-    return svc_review_flashcard(_get_db(), flashcard_id, knew_it)
+    db = _get_db()
+    card = db.get_flashcard(flashcard_id)
+    if card is None:
+        raise KeyError(f"flashcard {flashcard_id} not found")
+    result = svc_review_flashcard(db, flashcard_id, knew_it)
+    return _with_artifacts(result, card.material_id)
 
 
 @mcp.tool(description="Next N flashcards due for review.")
@@ -591,12 +633,12 @@ async def regenerate_map(material_id: int, notes: str | None = None) -> dict[str
     )
     db.upsert_learning_map(material_id, payload, md)
     lm = db.get_learning_map(material_id)
-    return {
+    return _with_artifacts({
         "ok": True,
         "regeneration_count": lm.regeneration_count if lm else 0,
         "map": payload,
         "markdown": md,
-    }
+    }, material_id)
 
 
 # --------------------- tools: notes regeneration ---------------------
@@ -616,7 +658,7 @@ async def extract_notes_now(
     db = _get_db()
     llm = _get_llm()
     report = await pipeline_prepare(db, llm, material_id, scope="notes", force=force)
-    return report
+    return _with_artifacts(report, material_id)
 
 
 # --------------------- tools: completion reports ---------------------
@@ -651,7 +693,10 @@ def get_completion_report(section_id: int) -> dict[str, Any]:
 async def regenerate_completion_report(section_id: int) -> dict[str, Any]:
     db = _get_db()
     md = await svc_gen_completion(db, _get_llm(), section_id)
-    return {"status": "ready", "markdown": md}
+    return _with_artifacts(
+        {"status": "ready", "markdown": md},
+        _material_id_for_section(section_id),
+    )
 
 
 # --------------------- tools: exports ---------------------
@@ -703,6 +748,27 @@ def export_notes(material_id: int, output_path: str) -> dict[str, Any]:
     return {"ok": True, "sections_with_notes": count, "path": str(out.resolve())}
 
 
+@mcp.tool(
+    description=(
+        "Export learner-facing artifacts for a material. format='markdown' "
+        "regenerates the readable Markdown mirror; format='json' writes "
+        "structured JSON files under json/; format='all' writes both. JSON is "
+        "never written by the automatic mirror."
+    )
+)
+def export_material_artifacts(
+    material_id: int,
+    output_dir: str | None = None,
+    format: str = "markdown",
+) -> dict[str, Any]:
+    return svc_export_material_artifacts(
+        _get_db(),
+        material_id,
+        output_dir=output_dir,
+        format=format,
+    )
+
+
 # --------------------- tools: library + progress ---------------------
 
 
@@ -740,7 +806,8 @@ def library_dashboard() -> dict[str, Any]:
 def start_background_preparation(
     material_id: int, scope: str = "all", force: bool = False
 ) -> dict[str, Any]:
-    return background.start(_get_db(), _get_llm(), material_id, scope=scope, force=force)
+    result = background.start(_get_db(), _get_llm(), material_id, scope=scope, force=force)
+    return _with_artifacts(result, material_id)
 
 
 @mcp.tool(
@@ -875,13 +942,14 @@ def plan_study(
     from datetime import date as _date
 
     start = _date.fromisoformat(start_date) if start_date else None
-    return svc_plan_study(
+    plan = svc_plan_study(
         _get_db(),
         material_id,
         start_date=start,
         days_per_week=days_per_week,
         minutes_per_session=minutes_per_session,
     )
+    return _with_artifacts(plan, material_id, study_plan=plan)
 
 
 # --------------------- tools: streak + weekly report (v2) ---------------------
@@ -926,7 +994,8 @@ def weekly_report() -> dict[str, Any]:
 async def evaluate_phase_response(
     section_id: int, phase: str, response: str | None = None
 ) -> dict[str, Any]:
-    return await svc_evaluate_phase(_get_db(), _get_llm(), section_id, phase, response)
+    result = await svc_evaluate_phase(_get_db(), _get_llm(), section_id, phase, response)
+    return _with_artifacts(result, _material_id_for_section(section_id))
 
 
 @mcp.tool(
@@ -966,7 +1035,8 @@ def export_project(material_id: int, output_path: str) -> dict[str, Any]:
 )
 def import_project(input_path: str) -> dict[str, Any]:
     path = Path(input_path).expanduser()
-    return svc_import_project(_get_db(), path)
+    result = svc_import_project(_get_db(), path)
+    return _with_artifacts(result, result["material_id"])
 
 
 @mcp.resource("review://due")

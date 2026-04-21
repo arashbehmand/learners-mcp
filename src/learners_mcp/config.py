@@ -41,3 +41,16 @@ def ensure_data_dir() -> Path:
 
 def llm_config_path() -> Path:
     return data_dir() / "llm.yaml"
+
+
+def artifact_dir() -> Path:
+    """Default directory for learner-readable generated artifacts."""
+    override = os.environ.get("LEARNERS_MCP_ARTIFACT_DIR")
+    if override:
+        return Path(override).expanduser()
+    return Path.cwd() / "learners"
+
+
+def artifact_mirror_enabled() -> bool:
+    value = os.environ.get("LEARNERS_MCP_ARTIFACT_MIRROR", "on").strip().lower()
+    return value not in {"0", "false", "no", "off"}

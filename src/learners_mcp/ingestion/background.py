@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from ..db import DB
+from ..export.artifacts import auto_export_markdown_artifacts
 from ..llm.client import LLM
 from .pipeline import prepare_material
 
@@ -45,6 +46,13 @@ async def _run(db: DB, llm: LLM, material_id: int, state: BackgroundState) -> No
         state.last_report = await prepare_material(
             db, llm, material_id, scope=state.scope, force=state.force
         )
+        try:
+            artifact = auto_export_markdown_artifacts(db, material_id)
+            if artifact:
+                state.last_report["artifact_dir"] = artifact["artifact_dir"]
+                state.last_report["updated_files"] = artifact["updated_files"]
+        except Exception as exc:
+            state.last_report["artifact_warning"] = f"{type(exc).__name__}: {exc}"
     except Exception as exc:
         log.exception("background prepare for material %d failed", material_id)
         state.error = f"{type(exc).__name__}: {exc}\n{traceback.format_exc(limit=3)}"

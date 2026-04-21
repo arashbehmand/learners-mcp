@@ -11,7 +11,7 @@ MCP server that turns any source material into a guided learning experience:
 - **Study plans** — calendar-aware schedule using focus-brief time estimates + suggested path.
 - **Streak + weekly report** — activity roll-ups across the library.
 - **Phase evaluation** — opt-in structured assessment of a phase response (strengths, gaps, misconceptions, follow-ups).
-- **Exports** — Anki `.apkg`, CSV, combined Markdown notes, portable project JSON (full round-trip).
+- **Exports** — auto-written learner Markdown mirror, Anki `.apkg`, CSV, combined Markdown notes, explicit JSON artifact export, portable project JSON (full round-trip).
 
 Host-agnostic: works with any MCP-capable agent (Claude Desktop, Claude Code, Codex, Gemini, Cursor, Zed, Continue, etc.).
 
@@ -92,7 +92,7 @@ Other MCP hosts (Codex, Gemini CLI, Cursor, Zed, Continue) follow the same `comm
 
 ## Surface
 
-- **Tools** (37): ingestion/prep (`ingest_material`, `prepare_material`, `get_preparation_status`, `start_background_preparation`, `get_background_status`); orientation (`get_material_map`, `regenerate_map`, `get_focus_brief`); notes (`get_notes`, `extract_notes_now`); library (`list_sections`, `list_materials`, `material_progress`, `library_dashboard`); study loop (`start_section`, `get_phase_prompt`, `record_phase_response`, `complete_phase`, `check_prerequisites`, `plan_study`, `study_streak`, `weekly_report`); evaluation (`evaluate_phase_response`, `list_evaluations`); flashcards (`suggest_flashcards`, `add_flashcard`, `list_flashcards`, `review_flashcard`, `next_due`); ad-hoc (`answer_from_material`, `recommend_next_action`); completion (`get_completion_report`, `regenerate_completion_report`); exports (`export_anki`, `export_notes`, `export_project`, `import_project`).
+- **Tools** (38): ingestion/prep (`ingest_material`, `prepare_material`, `get_preparation_status`, `start_background_preparation`, `get_background_status`); orientation (`get_material_map`, `regenerate_map`, `get_focus_brief`); notes (`get_notes`, `extract_notes_now`); library (`list_sections`, `list_materials`, `material_progress`, `library_dashboard`); study loop (`start_section`, `get_phase_prompt`, `record_phase_response`, `complete_phase`, `check_prerequisites`, `plan_study`, `study_streak`, `weekly_report`); evaluation (`evaluate_phase_response`, `list_evaluations`); flashcards (`suggest_flashcards`, `add_flashcard`, `list_flashcards`, `review_flashcard`, `next_due`); ad-hoc (`answer_from_material`, `recommend_next_action`); completion (`get_completion_report`, `regenerate_completion_report`); exports (`export_anki`, `export_notes`, `export_material_artifacts`, `export_project`, `import_project`).
 - **Resource templates**: `material://{id}`, `learning_map://{id}`, `focus_brief://{section_id}`, `notes://{id}`, `notes://{id}/{section_id}`, `section_state://{section_id}`, `completion_report://{section_id}`, `evaluations://{section_id}`, `plan://{material_id}`.
 - **Concrete resources**: `library://`, `review://due`, `streak://`, `report://weekly`.
 - **Prompts**: `preview`, `explain`, `question`, `anchor` (phase-coaching prompts the host agent executes).
@@ -108,9 +108,15 @@ Other MCP hosts (Codex, Gemini CLI, Cursor, Zed, Continue) follow the same `comm
 6. In Anchor: `suggest_flashcards` → `add_flashcard` × N. `complete_phase(section_id, 'anchor')` triggers a completion report.
 7. Later: `next_due(material_id)` for review sessions; `review_flashcard(id, knew_it)` to grade.
 
+## Learner artifacts
+
+Generated study material is mirrored as readable Markdown in `./learners/<material-slug>/` by default. The SQLite DB remains the canonical state, but the learner can open files such as `learning-map.md`, `focus-briefs.md`, `notes.md`, `flashcards.md`, and `progress.md` directly from the working directory.
+
+Set `LEARNERS_MCP_ARTIFACT_DIR=/path/to/dir` to write the mirror somewhere else, or `LEARNERS_MCP_ARTIFACT_MIRROR=off` to disable automatic Markdown writes. JSON artifacts are explicit only: call `export_material_artifacts(material_id, format="json")` or `format="all"` to write structured files under `json/`.
+
 ## State
 
-SQLite DB + artifacts live in `~/.learners-mcp/`. Override with `LEARNERS_MCP_DATA_DIR`. Delete the directory to start fresh.
+SQLite DB + server config live in `~/.learners-mcp/`. Override with `LEARNERS_MCP_DATA_DIR`. Delete the directory to start fresh.
 
 ## Tests
 

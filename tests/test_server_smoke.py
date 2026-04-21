@@ -41,6 +41,7 @@ EXPECTED_TOOLS = {
     "regenerate_completion_report",
     "export_anki",
     "export_notes",
+    "export_material_artifacts",
     "material_progress",
     "library_dashboard",
     "start_background_preparation",
