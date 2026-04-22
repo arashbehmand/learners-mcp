@@ -22,6 +22,7 @@ TEXT_SUFFIXES = {".txt", ".md", ".markdown"}
 SUPPORTED_SUFFIXES = {".pdf", ".epub", ".docx", *TEXT_SUFFIXES}
 
 YT_HOSTS = ("youtube.com", "youtu.be", "m.youtube.com")
+_MARKITDOWN_CLASS = None
 
 
 @dataclass
@@ -49,6 +50,13 @@ def load_text(raw: str, title: str) -> LoadedMaterial:
     return LoadedMaterial(title=title, text=raw, source_type="text", source_ref="(pasted)")
 
 
+def preload_markitdown(source: str | None = None) -> None:
+    """Import MarkItDown on the caller thread when the source needs it."""
+    if source is not None and not _uses_markitdown(source):
+        return
+    _get_markitdown_class()
+
+
 # -------------------- internal --------------------
 
 
@@ -72,9 +80,7 @@ def _load_file(source: str, title: str | None) -> LoadedMaterial:
             source_ref=str(path),
         )
 
-    from markitdown import MarkItDown  # type: ignore[import-not-found]
-
-    result = MarkItDown().convert(str(path))
+    result = _get_markitdown_class()().convert(str(path))
     text = result.text_content or ""
     if not text.strip():
         raise ValueError(f"markitdown returned empty content for {path}")
@@ -89,9 +95,7 @@ def _load_file(source: str, title: str | None) -> LoadedMaterial:
 
 def _load_url(url: str, title: str | None) -> LoadedMaterial:
     """Fetch a web page via markitdown."""
-    from markitdown import MarkItDown  # type: ignore[import-not-found]
-
-    result = MarkItDown().convert(url)
+    result = _get_markitdown_class()().convert(url)
     text = result.text_content or ""
     if not text.strip():
         raise ValueError(f"URL returned empty or unreadable content: {url}")
@@ -173,3 +177,22 @@ def _title_from_url(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
     path = parsed.path.strip("/") or parsed.netloc
     return path[:80]
+
+
+def _get_markitdown_class():
+    global _MARKITDOWN_CLASS
+    if _MARKITDOWN_CLASS is None:
+        from markitdown import MarkItDown  # type: ignore[import-not-found]
+
+        _MARKITDOWN_CLASS = MarkItDown
+    return _MARKITDOWN_CLASS
+
+
+def _uses_markitdown(source: str) -> bool:
+    s = source.strip()
+    if _looks_like_youtube(s):
+        return False
+    if s.startswith(("http://", "https://")):
+        return True
+    suffix = Path(s).expanduser().suffix.lower()
+    return suffix in (SUPPORTED_SUFFIXES - TEXT_SUFFIXES)

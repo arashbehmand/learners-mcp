@@ -16,7 +16,7 @@ from typing import Any
 
 from ..config import artifact_dir, artifact_mirror_enabled
 from ..db import DB
-from ..orientation.generator import render_focus_brief_markdown
+from ..orientation.render import render_focus_brief_markdown
 from ..study.progress import material_progress
 
 MARKDOWN_FILES = (

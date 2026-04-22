@@ -21,53 +21,37 @@ Host-agnostic: works with any MCP-capable agent (Claude Desktop, Claude Code, Co
 
 ### What you need
 
-- **Python 3.10 or newer** — the runtime that powers the server.
+- **uv** — a fast Python package manager that handles everything below.
 - **Claude Desktop** (or another MCP-compatible app).
 - **An API key** from Anthropic (or another provider — see [Configuring models](#configuring-models) below).
 
 ---
 
-### 1. Check (or install) Python
+### 1. Install uv
+
+`uv` installs Python for you and runs packages in isolated environments — no separate Python install needed.
 
 **macOS / Linux** — open Terminal and run:
-```
-python3 --version
-```
-You need `Python 3.10` or higher. If it's missing or older, download the latest from [python.org](https://www.python.org/downloads/).
-
-**Windows** — open Command Prompt (search for "cmd" in the Start menu) and run:
-```
-python --version
-```
-If Python isn't installed, download it from [python.org](https://www.python.org/downloads/). During install, tick **"Add Python to PATH"** — this is easy to miss and will cause problems if skipped.
-
----
-
-### 2. Install learners-mcp
-
-Open a terminal (macOS/Linux: Terminal; Windows: Command Prompt or PowerShell) and run:
-
-**macOS / Linux:**
 ```bash
-pip3 install learners-mcp
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-**Windows:**
-```
-pip install learners-mcp
+**Windows** — open PowerShell and run:
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-This installs the `learners-mcp` command on your system.
+Close and reopen the terminal after install so the `uvx` command is available.
 
 ---
 
-### 3. Get an API key
+### 2. Get an API key
 
 Go to [console.anthropic.com](https://console.anthropic.com), sign up or log in, and create an API key. It will look like `sk-ant-...`. Copy it — you'll need it in the next step.
 
 ---
 
-### 4. Register with Claude Desktop
+### 3. Register with Claude Desktop
 
 Find and open the Claude Desktop config file in any text editor (Notepad on Windows, TextEdit on macOS):
 
@@ -80,7 +64,8 @@ If the file is empty or doesn't exist, create it with exactly this content (repl
 {
   "mcpServers": {
     "learners": {
-      "command": "learners-mcp",
+      "command": "uvx",
+      "args": ["learners-mcp"],
       "env": { "ANTHROPIC_API_KEY": "sk-ant-..." }
     }
   }
@@ -89,7 +74,7 @@ If the file is empty or doesn't exist, create it with exactly this content (repl
 
 If the file already has other servers, add the `"learners"` block inside the existing `"mcpServers"` section — don't replace what's already there.
 
-**Restart Claude Desktop.** The learners server should appear in the tools panel (the hammer/plug icon).
+**Restart Claude Desktop.** The learners server should appear in the tools panel (the hammer/plug icon). `uvx` downloads and runs `learners-mcp` automatically on first use — no separate install step needed.
 
 ---
 
@@ -119,7 +104,7 @@ You can also load a URL or a YouTube video URL the same way:
 
 ### Troubleshooting
 
-**"command not found: learners-mcp"** — Python's scripts directory isn't on your PATH. Try closing and reopening the terminal after install. On Windows, re-run the Python installer and make sure "Add to PATH" is checked.
+**"command not found: uvx"** — close and reopen the terminal after installing uv. On Windows, open a fresh PowerShell window.
 
 **"API key missing" or requests failing** — check that the key in `claude_desktop_config.json` starts with `sk-ant-` and has no extra spaces or quote characters around it. Restart Claude Desktop after any edit to that file.
 
@@ -192,7 +177,8 @@ export ANTHROPIC_API_KEY=sk-ant-...
 {
   "mcpServers": {
     "learners": {
-      "command": "learners-mcp",
+      "command": "uvx",
+      "args": ["learners-mcp"],
       "env": { "ANTHROPIC_API_KEY": "sk-ant-..." }
     }
   }

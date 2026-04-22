@@ -13,13 +13,33 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
+import types
+import importlib.util
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
+
+
+def _install_lightweight_mcp_package() -> None:
+    """Avoid importing MCP client modules when this process is only a server."""
+    if "mcp" in sys.modules:
+        return
+    spec = importlib.util.find_spec("mcp")
+    if spec is None or spec.submodule_search_locations is None:
+        return
+    pkg = types.ModuleType("mcp")
+    pkg.__path__ = list(spec.submodule_search_locations)  # type: ignore[attr-defined]
+    pkg.__package__ = "mcp"
+    pkg.__spec__ = spec
+    sys.modules["mcp"] = pkg
+
+
+_install_lightweight_mcp_package()
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.prompts.base import Message, UserMessage
-
-from pathlib import Path
 
 from . import __version__
 from .config import ensure_data_dir
@@ -32,33 +52,16 @@ from .export.artifacts import export_material_artifacts as svc_export_material_a
 from .export.markdown import export_notes_markdown as svc_export_notes
 from .export.portable import export_project as svc_export_project
 from .export.portable import import_project as svc_import_project
-from .flashcards.service import review_flashcard as svc_review_flashcard
-from .flashcards.service import suggest_flashcards as svc_suggest_flashcards
-from .ingestion import background
 from .ingestion.loader import load as loader_load
 from .ingestion.loader import load_text as loader_load_text
-from .ingestion.pipeline import (
-    ingest as pipeline_ingest,
-    prepare_material as pipeline_prepare,
-    preparation_status as pipeline_status,
-)
-from .llm.client import LLM
+from .ingestion.loader import preload_markitdown as loader_preload_markitdown
 from .llm.prompts import (
     ANCHOR_COACH_SYSTEM,
     EXPLAIN_COACH_SYSTEM,
     PREVIEW_COACH_SYSTEM,
     QUESTION_COACH_SYSTEM,
 )
-from .orientation.cross_material import (
-    format_known_concepts_block,
-    gather_known_concepts,
-)
-from .orientation.generator import (
-    generate_material_map as svc_gen_material_map,
-    render_focus_brief_markdown,
-)
-from .study.completion import generate_completion_report as svc_gen_completion
-from .study.evaluation import evaluate_phase_response as svc_evaluate_phase
+from .orientation.render import render_focus_brief_markdown
 from .study.phases import (
     PHASES,
     next_phase,
@@ -70,8 +73,6 @@ from .study.plan import plan_study as svc_plan_study
 from .study.prereqs import check_prerequisites as svc_check_prereqs
 from .study.progress import library_progress as svc_library_progress
 from .study.progress import material_progress as svc_material_progress
-from .study.qa import answer_from_material as svc_answer
-from .study.rolling import ensure_rolling_summary
 from .study.streak import (
     compute_streak as svc_compute_streak,
     render_weekly_markdown as svc_render_weekly_md,
@@ -91,14 +92,17 @@ mcp = FastMCP(
         "to generate the learning map and focus briefs, then `start_section` for the "
         "first section. Use `get_phase_prompt` to fetch the coaching prompt for each "
         "phase; record the learner's response with `record_phase_response` and mark "
-        "done with `complete_phase`. Phase flow is soft-guidance — warnings, not blocks."
+        "done with `complete_phase`. Phase flow is soft-guidance — warnings, not blocks. "
+        "If a host says a learners tool has not been loaded yet, call the host's "
+        "`tool_search` for that exact learners tool name, then retry with the schema "
+        "returned by tool_search."
     ),
 )
 
 # Module-level singletons. Initialised lazily the first time a tool runs,
 # so stdio startup stays fast and missing API keys fail only on actual use.
 _db: DB | None = None
-_llm: LLM | None = None
+_llm: Any | None = None
 
 
 def _get_db() -> DB:
@@ -123,11 +127,98 @@ def _get_db() -> DB:
     return _db
 
 
-def _get_llm() -> LLM:
+def _get_llm() -> Any:
     global _llm
     if _llm is None:
+        from .llm.client import LLM
+
         _llm = LLM()
     return _llm
+
+
+def pipeline_ingest(*args, **kwargs):
+    from .ingestion.pipeline import ingest
+
+    return ingest(*args, **kwargs)
+
+
+async def pipeline_prepare(*args, **kwargs):
+    from .ingestion.pipeline import prepare_material
+
+    return await prepare_material(*args, **kwargs)
+
+
+def pipeline_status(*args, **kwargs):
+    from .ingestion.pipeline import preparation_status
+
+    return preparation_status(*args, **kwargs)
+
+
+class _BackgroundProxy:
+    """Lazy proxy kept patchable for tests and downstream integrations."""
+
+    def start(self, *args, **kwargs):
+        from .ingestion import background as real_background
+
+        return real_background.start(*args, **kwargs)
+
+    def status(self, *args, **kwargs):
+        from .ingestion import background as real_background
+
+        return real_background.status(*args, **kwargs)
+
+
+background = _BackgroundProxy()
+
+
+def _background_start(*args, **kwargs):
+    return background.start(*args, **kwargs)
+
+
+def _background_status(*args, **kwargs):
+    return background.status(*args, **kwargs)
+
+
+async def svc_gen_material_map(*args, **kwargs):
+    from .orientation.generator import generate_material_map
+
+    return await generate_material_map(*args, **kwargs)
+
+
+async def svc_gen_completion(*args, **kwargs):
+    from .study.completion import generate_completion_report
+
+    return await generate_completion_report(*args, **kwargs)
+
+
+async def svc_evaluate_phase(*args, **kwargs):
+    from .study.evaluation import evaluate_phase_response
+
+    return await evaluate_phase_response(*args, **kwargs)
+
+
+async def svc_suggest_flashcards(*args, **kwargs):
+    from .flashcards.service import suggest_flashcards
+
+    return await suggest_flashcards(*args, **kwargs)
+
+
+def svc_review_flashcard(*args, **kwargs):
+    from .flashcards.service import review_flashcard
+
+    return review_flashcard(*args, **kwargs)
+
+
+async def svc_answer(*args, **kwargs):
+    from .study.qa import answer_from_material
+
+    return await answer_from_material(*args, **kwargs)
+
+
+async def ensure_rolling_summary(*args, **kwargs):
+    from .study.rolling import ensure_rolling_summary as _ensure_rolling_summary
+
+    return await _ensure_rolling_summary(*args, **kwargs)
 
 
 # --------------------- helpers ---------------------
@@ -218,6 +309,7 @@ async def ingest_material(
     if paste_text:
         loaded = await asyncio.to_thread(loader_load_text, source, title or "Untitled")
     else:
+        loader_preload_markitdown(source)
         loaded = await asyncio.to_thread(loader_load, source, title)
 
     h = hash_text(loaded.text)
@@ -227,7 +319,7 @@ async def ingest_material(
     prep_status: dict[str, Any] | None = None
     if auto_prepare:
         try:
-            prep_status = background.start(
+            prep_status = _background_start(
                 db, _get_llm(), material_id, scope="all", force=False
             )
         except Exception as exc:
@@ -376,14 +468,19 @@ def list_materials() -> list[dict[str, Any]]:
     description=(
         "Mark a section as active and return its full state: content, focus brief, "
         "current phase, any recorded phase responses. Also ensures the rolling "
-        "summary for this section is computed."
+        "summary for this section is computed. Requires `section_id`; optional "
+        "`material_id` is accepted only to validate host retries that include it."
     )
 )
-async def start_section(section_id: int) -> dict[str, Any]:
+async def start_section(section_id: int, material_id: int | str | None = None) -> dict[str, Any]:
     db = _get_db()
     s = db.get_section(section_id)
     if s is None:
         raise KeyError(f"section {section_id} not found")
+    if material_id is not None and int(material_id) != s.material_id:
+        raise ValueError(
+            f"section {section_id} belongs to material {s.material_id}, not {material_id}"
+        )
 
     await ensure_rolling_summary(db, _get_llm(), section_id)
     s = db.get_section(section_id)
@@ -623,6 +720,11 @@ async def regenerate_map(material_id: int, notes: str | None = None) -> dict[str
     full_text = "\n\n".join(full_text_parts)
 
     section_index = [(s.order_index, s.title) for s in sections]
+    from .orientation.cross_material import (
+        format_known_concepts_block,
+        gather_known_concepts,
+    )
+
     known = gather_known_concepts(db, exclude_material_id=material_id)
     payload, md = await svc_gen_material_map(
         _get_llm(),
@@ -806,7 +908,7 @@ def library_dashboard() -> dict[str, Any]:
 def start_background_preparation(
     material_id: int, scope: str = "all", force: bool = False
 ) -> dict[str, Any]:
-    result = background.start(_get_db(), _get_llm(), material_id, scope=scope, force=force)
+    result = _background_start(_get_db(), _get_llm(), material_id, scope=scope, force=force)
     return _with_artifacts(result, material_id)
 
 
@@ -817,7 +919,7 @@ def start_background_preparation(
     )
 )
 def get_background_status(material_id: int) -> dict[str, Any]:
-    return background.status(material_id)
+    return _background_status(material_id)
 
 
 # --------------------- resources ---------------------
@@ -1236,6 +1338,13 @@ def get_phase_prompt(section_id: int, phase: str) -> dict[str, str]:
 
 # --------------------- entry point ---------------------
 
+def _preload_markitdown_enabled() -> bool:
+    return os.environ.get("LEARNERS_MCP_PRELOAD_MARKITDOWN", "").lower() not in {
+        "0",
+        "false",
+        "off",
+    }
+
 
 def main() -> None:
     logging.basicConfig(
@@ -1243,6 +1352,12 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     log.info("learners-mcp %s starting (stdio)", __version__)
+    if _preload_markitdown_enabled():
+        try:
+            loader_preload_markitdown()
+            log.info("MarkItDown preloaded")
+        except Exception as exc:
+            log.warning("MarkItDown preload failed: %s", exc)
     mcp.run(transport="stdio")
 
 

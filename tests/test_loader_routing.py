@@ -18,6 +18,7 @@ from learners_mcp.ingestion.loader import (
     load,
     load_text,
 )
+import learners_mcp.ingestion.loader as loader_mod
 
 
 def test_looks_like_youtube_detects_hosts():
@@ -69,6 +70,7 @@ def test_load_reads_plain_text_files_without_markitdown(tmp_path, monkeypatch):
 
 
 def test_load_routes_url_to_markitdown():
+    loader_mod._MARKITDOWN_CLASS = None
     fake_result = SimpleNamespace(text_content="# Page\n\nHello", title="Page")
     with patch("markitdown.MarkItDown") as mid_cls:
         mid_cls.return_value.convert.return_value = fake_result
@@ -76,6 +78,23 @@ def test_load_routes_url_to_markitdown():
     assert lm.source_type == "url"
     assert lm.source_ref == "https://example.com/article"
     assert "Hello" in lm.text
+
+
+def test_load_routes_epub_to_markitdown(tmp_path):
+    loader_mod._MARKITDOWN_CLASS = None
+    path = tmp_path / "book.epub"
+    path.write_bytes(b"fake epub")
+
+    fake_result = SimpleNamespace(text_content="# Book\n\nConverted", title=None)
+
+    with patch("markitdown.MarkItDown") as mid_cls:
+        mid_cls.return_value.convert.return_value = fake_result
+        lm = load(str(path), title=None)
+
+    assert lm.title == "book"
+    assert lm.source_type == "epub"
+    assert lm.source_ref == str(path.resolve())
+    assert "Converted" in lm.text
 
 
 def test_load_routes_youtube_to_transcript_api():

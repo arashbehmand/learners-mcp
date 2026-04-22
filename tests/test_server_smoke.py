@@ -124,6 +124,17 @@ async def test_each_tool_has_valid_input_schema():
 
 
 @pytest.mark.asyncio
+async def test_start_section_accepts_optional_material_id_for_host_retries():
+    tools = await mcp.list_tools()
+    start_section = next(t for t in tools if t.name == "start_section")
+    props = start_section.inputSchema["properties"]
+
+    assert "section_id" in props
+    assert "material_id" in props
+    assert start_section.inputSchema["required"] == ["section_id"]
+
+
+@pytest.mark.asyncio
 async def test_each_prompt_has_section_id_argument():
     prompts = await mcp.list_prompts()
     for p in prompts:
