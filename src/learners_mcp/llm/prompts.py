@@ -13,6 +13,21 @@ Conventions:
 from __future__ import annotations
 
 
+SOURCE_ARTIFACT_LANGUAGE_POLICY = (
+    "Language policy: infer the source material's dominant language and write "
+    "generated learner artifacts in that same language. Preserve original "
+    "technical terms, names, citations, and quoted text as needed. If the "
+    "source is mixed-language, follow the dominant language while retaining "
+    "important original terms."
+)
+
+USER_INTERACTION_LANGUAGE_POLICY = (
+    "Language policy: for direct learner-facing interaction, respond in the "
+    "language the learner is currently using. If the learner switches language, "
+    "switch with them. Keep source-grounded citations and original terms intact."
+)
+
+
 # ================= Note extraction (ported from note-extractor) =================
 
 MAP_SYSTEM = (
@@ -273,3 +288,37 @@ ANCHOR_COACH_SYSTEM = (
     "invite the learner to accept, edit, or reject each. When ready, call `suggest_flashcards` "
     "to get AI candidates from the server and `add_flashcard` to commit the ones the learner accepts."
 )
+
+
+_ARTIFACT_SYSTEM_PROMPT_NAMES = (
+    "MAP_SYSTEM",
+    "TLDR_SYSTEM",
+    "REDUCE_SYSTEM",
+    "CONSISTENCY_SYSTEM",
+    "LEARNING_MAP_SYSTEM",
+    "FOCUS_BRIEF_SYSTEM",
+    "ROLLING_SUMMARY_SYSTEM",
+    "SUGGEST_CARDS_SYSTEM",
+    "COMPLETION_REPORT_SYSTEM",
+    "EVALUATE_PHASE_SYSTEM",
+)
+
+_INTERACTION_SYSTEM_PROMPT_NAMES = (
+    "PREVIEW_COACH_SYSTEM",
+    "EXPLAIN_COACH_SYSTEM",
+    "QUESTION_COACH_SYSTEM",
+    "ANCHOR_COACH_SYSTEM",
+)
+
+
+def _append_language_policy(prompt_name: str, policy: str) -> None:
+    globals()[prompt_name] = globals()[prompt_name] + "\n\n" + policy
+
+
+for _prompt_name in _ARTIFACT_SYSTEM_PROMPT_NAMES:
+    _append_language_policy(_prompt_name, SOURCE_ARTIFACT_LANGUAGE_POLICY)
+
+for _prompt_name in _INTERACTION_SYSTEM_PROMPT_NAMES:
+    _append_language_policy(_prompt_name, USER_INTERACTION_LANGUAGE_POLICY)
+
+del _prompt_name

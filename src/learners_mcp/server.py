@@ -93,6 +93,8 @@ mcp = FastMCP(
         "first section. Use `get_phase_prompt` to fetch the coaching prompt for each "
         "phase; record the learner's response with `record_phase_response` and mark "
         "done with `complete_phase`. Phase flow is soft-guidance — warnings, not blocks. "
+        "Generated learner artifacts should stay in the source material's language; "
+        "direct learner-facing coaching should use the language the learner is using. "
         "If a host says a learners tool has not been loaded yet, call the host's "
         "`tool_search` for that exact learners tool name, then retry with the schema "
         "returned by tool_search."
