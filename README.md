@@ -195,20 +195,32 @@ Other MCP hosts (Codex, Gemini CLI, Cursor, Zed, Continue) use the same `command
 ## Surface
 
 - **Tools** (38): ingestion/prep (`ingest_material`, `prepare_material`, `get_preparation_status`, `start_background_preparation`, `get_background_status`); orientation (`get_material_map`, `regenerate_map`, `get_focus_brief`); notes (`get_notes`, `extract_notes_now`); library (`list_sections`, `list_materials`, `material_progress`, `library_dashboard`); study loop (`start_section`, `get_phase_prompt`, `record_phase_response`, `complete_phase`, `check_prerequisites`, `plan_study`, `study_streak`, `weekly_report`); evaluation (`evaluate_phase_response`, `list_evaluations`); flashcards (`suggest_flashcards`, `add_flashcard`, `list_flashcards`, `review_flashcard`, `next_due`); ad-hoc (`answer_from_material`, `recommend_next_action`); completion (`get_completion_report`, `regenerate_completion_report`); exports (`export_anki`, `export_notes`, `export_material_artifacts`, `export_project`, `import_project`).
-- **Resource templates**: `material://{id}`, `learning_map://{id}`, `focus_brief://{section_id}`, `notes://{id}`, `notes://{id}/{section_id}`, `section_state://{section_id}`, `completion_report://{section_id}`, `evaluations://{section_id}`, `plan://{material_id}`.
+- **Resource templates**: `material://{id}`, `learning_map://{id}`, `focus_brief://{section_id}`, `notes://{id}`, `notes://{id}/{section_id}`, `section://{section_id}`, `section_state://{section_id}`, `completion_report://{section_id}`, `evaluations://{section_id}`, `plan://{material_id}`.
 - **Concrete resources**: `library://`, `review://due`, `streak://`, `report://weekly`.
 - **Prompts**: `preview`, `explain`, `question`, `anchor` (phase-coaching prompts the host agent executes).
 
 
 ## Typical flow
 
-1. `ingest_material("/path/to/book.pdf")` → returns `material_id`.
-2. `start_background_preparation(material_id)` → learning map + focus briefs + notes generate asynchronously.
-3. `get_material_map(material_id)` once map is ready → orient the learner.
-4. `start_section(section_id)` → content + focus brief + phase state.
-5. For each phase (`preview` → `explain` → `question` → `anchor`): host invokes the matching prompt, learner responds, server records via `record_phase_response` + `complete_phase`.
-6. In Anchor: `suggest_flashcards` → `add_flashcard` × N. `complete_phase(section_id, 'anchor')` triggers a completion report.
-7. Later: `next_due(material_id)` for review sessions; `review_flashcard(id, knew_it)` to grade.
+Preferred study order:
+
+1. `list_materials()` if the library may already contain the source; otherwise `ingest_material("/path/to/book.pdf")`.
+2. `prepare_material(material_id)` or `start_background_preparation(material_id)` immediately after ingest.
+3. `get_preparation_status(material_id)` and prefer waiting until the learning map and focus briefs are ready.
+4. `get_material_map(material_id)` once per material to orient the learner before section work.
+5. `list_sections(material_id)` and choose the next section.
+6. `start_section(section_id)` to activate it.
+7. For each phase in order (`preview` → `explain` → `question` → `anchor`): host invokes the matching prompt, learner responds, server records via `record_phase_response` + `complete_phase`.
+8. In Anchor: `suggest_flashcards` → `add_flashcard` × N. `complete_phase(section_id, 'anchor')` triggers a completion report.
+9. Later: `recommend_next_action(material_id)`, `next_due(material_id)`, and `review_flashcard(id, knew_it)` drive follow-up study and spaced repetition.
+
+Prefer orientation before deep section work unless the learner explicitly wants to jump ahead.
+
+## Context discipline
+
+Heavy learner artifacts and section source text are available through MCP resources and the Markdown mirror in `./learners/<material-slug>/`.
+
+Tool calls intentionally return compact summaries for the model and link out to full resources instead of dumping large Markdown or section bodies into the chat context. Read the linked resources when you need the full artifact.
 
 ## Learner artifacts
 

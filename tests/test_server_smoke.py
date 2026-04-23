@@ -64,6 +64,7 @@ EXPECTED_RESOURCE_TEMPLATES = {
     "focus_brief://{section_id}",
     "notes://{material_id}",
     "notes://{material_id}/{section_id}",
+    "section://{section_id}",
     "section_state://{section_id}",
     "completion_report://{section_id}",
     # v2
@@ -110,6 +111,16 @@ async def test_prompts_list():
     prompts = await mcp.list_prompts()
     names = {p.name for p in prompts}
     assert EXPECTED_PROMPTS <= names, f"missing: {EXPECTED_PROMPTS - names}"
+
+
+def test_server_instructions_describe_preferred_study_order():
+    instructions = mcp.instructions or ""
+
+    assert "Preferred study order:" in instructions
+    assert "1. Call `list_materials`" in instructions
+    assert "4. Call `get_material_map(material_id)`" in instructions
+    assert "6. Call `start_section(section_id)`" in instructions
+    assert "`preview` → `explain` → `question` → `anchor`" in instructions
 
 
 @pytest.mark.asyncio

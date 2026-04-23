@@ -40,6 +40,12 @@ _install_lightweight_mcp_package()
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.prompts.base import Message, UserMessage
+from mcp.types import (
+    Annotations as MCPAnnotations,
+    CallToolResult,
+    ResourceLink,
+    TextContent,
+)
 
 from . import __version__
 from .config import ensure_data_dir
@@ -87,17 +93,33 @@ mcp = FastMCP(
     instructions=(
         "Guide the learner through any material with orientation (learning map + "
         "focus briefs), structured notes, and the four-phase study loop "
-        "(Preview → Explain → Question → Anchor) with SM-2 flashcards. "
-        "Start by calling `ingest_material` on a local file, then `prepare_material` "
-        "to generate the learning map and focus briefs, then `start_section` for the "
-        "first section. Use `get_phase_prompt` to fetch the coaching prompt for each "
-        "phase; record the learner's response with `record_phase_response` and mark "
-        "done with `complete_phase`. Phase flow is soft-guidance — warnings, not blocks. "
-        "Generated learner artifacts should stay in the source material's language; "
-        "direct learner-facing coaching should use the language the learner is using. "
-        "If a host says a learners tool has not been loaded yet, call the host's "
-        "`tool_search` for that exact learners tool name, then retry with the schema "
-        "returned by tool_search."
+        "(Preview → Explain → Question → Anchor) with SM-2 flashcards.\n\n"
+        "Preferred study order:\n"
+        "1. Call `list_materials` to inspect the library, or `ingest_material` for a "
+        "new local file, URL, YouTube link, or pasted text.\n"
+        "2. Immediately call `prepare_material(material_id)` or "
+        "`start_background_preparation(material_id)`.\n"
+        "3. Check `get_preparation_status(material_id)`; prefer waiting until the "
+        "learning map and focus briefs are ready before section study.\n"
+        "4. Call `get_material_map(material_id)` once to orient the learner.\n"
+        "5. Call `list_sections(material_id)` and choose the next section.\n"
+        "6. Call `start_section(section_id)` to activate it.\n"
+        "7. Run the section phases in order: `preview` → `explain` → `question` → "
+        "`anchor`. For each phase, fetch the coaching prompt (`get_phase_prompt` or "
+        "native MCP prompt), talk with the learner, then persist the result with "
+        "`record_phase_response` and `complete_phase`.\n"
+        "8. In Anchor, call `suggest_flashcards`, commit accepted cards with "
+        "`add_flashcard`, then complete the phase.\n"
+        "9. After section study, use `recommend_next_action`, `next_due`, and "
+        "`review_flashcard` for follow-up and spaced repetition.\n\n"
+        "Prefer orientation before deep section work unless the learner explicitly wants "
+        "to jump ahead. Phase flow is soft-guidance — warnings, not blocks. Generated "
+        "learner artifacts should stay in the source material's language; direct "
+        "learner-facing coaching should use the language the learner is using. Tool "
+        "results are intentionally compact: use linked resources and Markdown artifacts "
+        "for full content instead of pasting large blobs into chat. If a host says a "
+        "learners tool has not been loaded yet, call the host's `tool_search` for that "
+        "exact learners tool name, then retry with the schema returned by tool_search."
     ),
 )
 
@@ -291,6 +313,74 @@ def _source_language_code(material_id: int) -> str | None:
     return source_language.get("code")
 
 
+HEAVY_RESOURCE_ANNOTATIONS = MCPAnnotations(
+    audience=["user", "assistant"],
+    priority=0.2,
+)
+
+
+def _preview_text(text: str | None, limit: int = 600) -> str:
+    if not text:
+        return ""
+    compact = " ".join(text.split())
+    if len(compact) <= limit:
+        return compact
+    head = compact[:limit]
+    cut = head.rfind(" ")
+    if cut > limit * 0.6:
+        head = head[:cut]
+    return head.rstrip() + "..."
+
+
+def _text_block(text: str, *, priority: float = 1.0) -> TextContent:
+    return TextContent(
+        type="text",
+        text=text,
+        annotations=MCPAnnotations(audience=["user", "assistant"], priority=priority),
+    )
+
+
+def _resource_link(
+    uri: str,
+    *,
+    name: str,
+    title: str,
+    description: str,
+    mime_type: str = "text/markdown",
+    priority: float = 0.2,
+) -> ResourceLink:
+    return ResourceLink(
+        type="resource_link",
+        uri=uri,
+        name=name,
+        title=title,
+        description=description,
+        mimeType=mime_type,
+        annotations=MCPAnnotations(audience=["user", "assistant"], priority=priority),
+    )
+
+
+def _artifact_location(payload: dict[str, Any], file_name: str | None = None) -> str | None:
+    artifact_dir = payload.get("artifact_dir")
+    if not artifact_dir:
+        return None
+    base = Path(str(artifact_dir))
+    return str((base / file_name) if file_name else base)
+
+
+def _compact_tool_result(
+    summary_lines: list[str],
+    payload: dict[str, Any],
+    *,
+    links: list[ResourceLink] | None = None,
+) -> CallToolResult:
+    text = "\n".join(line for line in summary_lines if line).strip()
+    content: list[Any] = [_text_block(text)] if text else []
+    if links:
+        content.extend(links)
+    return CallToolResult(content=content, structuredContent=payload)
+
+
 # --------------------- tools: ingestion + preparation ---------------------
 
 
@@ -389,14 +479,68 @@ def get_preparation_status(material_id: int) -> dict[str, Any]:
 def get_material_map(material_id: int) -> dict[str, Any]:
     lm = _get_db().get_learning_map(material_id)
     if lm is None:
-        return {"status": "pending", "note": "Call prepare_material(material_id) first."}
-    return {
+        payload = {
+            "status": "pending",
+            "note": "Call prepare_material(material_id) first.",
+            "resource_uri": f"learning-map://{material_id}",
+        }
+        return _compact_tool_result(
+            [
+                f"Learning map for material {material_id} is still pending.",
+                "Preferred order: call `prepare_material(material_id)` or "
+                "`start_background_preparation(material_id)`, then retry.",
+            ],
+            payload,
+            links=[
+                _resource_link(
+                    f"learning-map://{material_id}",
+                    name="learning-map",
+                    title="Learning map",
+                    description="Full learning map resource for this material.",
+                )
+            ],
+        )
+    payload = {
         "status": "ready",
         "map": lm.map_json,
         "markdown": lm.map_markdown,
         "generated_at": lm.generated_at.isoformat() if lm.generated_at else None,
         "regeneration_count": lm.regeneration_count,
+        "resource_uri": f"learning-map://{material_id}",
     }
+    map_json = lm.map_json or {}
+    objectives = map_json.get("objectives") or []
+    key_concepts = map_json.get("key_concepts") or []
+    suggested_path = map_json.get("suggested_path") or []
+    return _compact_tool_result(
+        [
+            f"Learning map ready for material {material_id}.",
+            (
+                f"Difficulty: {map_json.get('difficulty') or 'unknown'}. "
+                f"Estimated time: {map_json.get('estimated_time') or 'unknown'}."
+            ),
+            (
+                f"Objectives: {len(objectives)}. "
+                f"Key concepts: {len(key_concepts)}. "
+                f"Suggested path entries: {len(suggested_path)}."
+            ),
+            (
+                f"Preview: {_preview_text(lm.map_markdown, 320)}"
+                if lm.map_markdown
+                else ""
+            ),
+            "Full map is available via the resource link below.",
+        ],
+        payload,
+        links=[
+            _resource_link(
+                f"learning-map://{material_id}",
+                name="learning-map",
+                title="Learning map",
+                description="Full learning map resource for this material.",
+            )
+        ],
+    )
 
 
 @mcp.tool(
@@ -410,19 +554,59 @@ def get_focus_brief(section_id: int) -> dict[str, Any]:
     if s is None:
         raise KeyError(f"section {section_id} not found")
     if s.focus_brief is None:
-        return {"status": "pending", "note": "Call prepare_material(material_id) first."}
-    return {
+        payload = {
+            "status": "pending",
+            "note": "Call prepare_material(material_id) first.",
+            "resource_uri": f"focus-brief://{section_id}",
+        }
+        return _compact_tool_result(
+            [
+                f"Focus brief for section {section_id} is still pending.",
+                "Call `prepare_material(material_id)` first if orientation artifacts have not been generated.",
+            ],
+            payload,
+            links=[
+                _resource_link(
+                    f"focus-brief://{section_id}",
+                    name="focus-brief",
+                    title="Focus brief",
+                    description="Full focus brief resource for this section.",
+                )
+            ],
+        )
+    markdown = render_focus_brief_markdown(
+        s.focus_brief,
+        s.order_index,
+        s.title,
+        language_code=_source_language_code(s.material_id),
+    )
+    payload = {
         "status": "ready",
         "order_index": s.order_index,
         "title": s.title,
         "brief": s.focus_brief,
-        "markdown": render_focus_brief_markdown(
-            s.focus_brief,
-            s.order_index,
-            s.title,
-            language_code=_source_language_code(s.material_id),
-        ),
+        "markdown": markdown,
+        "resource_uri": f"focus-brief://{section_id}",
     }
+    brief = s.focus_brief or {}
+    return _compact_tool_result(
+        [
+            f"Focus brief ready for §{s.order_index}: {s.title or '(untitled)'}.",
+            f"Estimated time: {brief.get('estimated_minutes', 'unknown')} minutes.",
+            f"Key terms: {len(brief.get('key_terms') or [])}.",
+            f"Focus: {brief.get('focus') or 'n/a'}",
+            "Full focus brief is available via the resource link below.",
+        ],
+        payload,
+        links=[
+            _resource_link(
+                f"focus-brief://{section_id}",
+                name="focus-brief",
+                title="Focus brief",
+                description="Full focus brief resource for this section.",
+            )
+        ],
+    )
 
 
 # --------------------- tools: notes ---------------------
@@ -440,13 +624,35 @@ def get_notes(material_id: int, section_id: int | None = None) -> dict[str, Any]
         s = db.get_section(section_id)
         if s is None:
             raise KeyError(f"section {section_id} not found")
-        return {
+        payload = {
             "scope": "section",
             "order_index": s.order_index,
             "title": s.title,
             "status": "ready" if s.notes else "pending",
             "markdown": s.notes or "",
+            "resource_uri": f"notes://{material_id}/{section_id}",
         }
+        status_line = (
+            f"Section notes ready for §{s.order_index}: {s.title or '(untitled)'}."
+            if s.notes
+            else f"Section notes for §{s.order_index}: {s.title or '(untitled)'} are still pending."
+        )
+        return _compact_tool_result(
+            [
+                status_line,
+                f"Preview: {_preview_text(s.notes, 320)}" if s.notes else "",
+                "Full notes are available via the resource link below.",
+            ],
+            payload,
+            links=[
+                _resource_link(
+                    f"notes://{material_id}/{section_id}",
+                    name="section-notes",
+                    title="Section notes",
+                    description="Full notes resource for this section.",
+                )
+            ],
+        )
     sections = db.get_sections(material_id)
     parts: list[str] = []
     any_ready = False
@@ -455,11 +661,35 @@ def get_notes(material_id: int, section_id: int | None = None) -> dict[str, Any]
             any_ready = True
             parts.append(f"# §{s.order_index}: {s.title or '(untitled)'}\n\n{s.notes}")
     status = "ready" if all(s.notes for s in sections) else ("partial" if any_ready else "pending")
-    return {
+    payload = {
         "scope": "material",
         "status": status,
         "markdown": "\n\n---\n\n".join(parts),
+        "sections_ready": sum(1 for s in sections if s.notes),
+        "sections_total": len(sections),
+        "resource_uri": f"notes://{material_id}",
     }
+    return _compact_tool_result(
+        [
+            f"Material notes status for material {material_id}: {status}.",
+            f"Sections with notes: {payload['sections_ready']}/{payload['sections_total']}.",
+            (
+                f"Preview: {_preview_text(payload['markdown'], 320)}"
+                if payload["markdown"]
+                else ""
+            ),
+            "Full notes are available via the resource link below.",
+        ],
+        payload,
+        links=[
+            _resource_link(
+                f"notes://{material_id}",
+                name="material-notes",
+                title="Material notes",
+                description="Combined notes resource for the full material.",
+            )
+        ],
+    )
 
 
 # --------------------- tools: study loop ---------------------
@@ -500,7 +730,7 @@ async def start_section(section_id: int, material_id: int | str | None = None) -
     await ensure_rolling_summary(db, _get_llm(), section_id)
     s = db.get_section(section_id)
 
-    return _with_artifacts({
+    payload = _with_artifacts({
         "section": _section_brief(s),
         "content": s.content,
         "focus_brief": s.focus_brief,
@@ -517,6 +747,57 @@ async def start_section(section_id: int, material_id: int | str | None = None) -
         "rolling_summary": s.rolling_summary,
         "phase_data": s.phase_data,
     }, s.material_id)
+    section_ref = _section_ref(s)
+    phase_data = s.phase_data or {}
+    recorded = [p for p in PHASES if (phase_data.get(p) or {}).get("response")]
+    artifact_note = _artifact_location(payload, "sections.md")
+    return _compact_tool_result(
+        [
+            f"{section_ref} is active. Current phase: {resolved_current_phase(s)}.",
+            "Preferred study order from here: preview -> explain -> question -> anchor.",
+            (
+                f"Focus brief: {'ready' if s.focus_brief else 'pending'}. "
+                f"Rolling summary: {'ready' if s.rolling_summary else 'pending'}."
+            ),
+            (
+                f"Recorded phase responses: {', '.join(recorded)}."
+                if recorded
+                else "Recorded phase responses: none yet."
+            ),
+            f"Section preview: {_preview_text(s.content, 900)}",
+            f"Readable section index mirror: {artifact_note}" if artifact_note else "",
+            "Full section state, focus brief, notes, and source text are available via the resource links below.",
+        ],
+        payload,
+        links=[
+            _resource_link(
+                f"section://{section_id}",
+                name="section-source",
+                title="Section source",
+                description="Full source text for the active section.",
+                mime_type="text/markdown",
+            ),
+            _resource_link(
+                f"section-state://{section_id}",
+                name="section-state",
+                title="Section state",
+                description="Structured section state including phase data and rolling summary.",
+                mime_type="application/json",
+            ),
+            _resource_link(
+                f"focus-brief://{section_id}",
+                name="focus-brief",
+                title="Focus brief",
+                description="Full focus brief resource for this section.",
+            ),
+            _resource_link(
+                f"notes://{s.material_id}/{section_id}",
+                name="section-notes",
+                title="Section notes",
+                description="Full notes resource for this section.",
+            ),
+        ],
+    )
 
 
 @mcp.tool(
@@ -797,14 +1078,48 @@ def get_completion_report(section_id: int) -> dict[str, Any]:
     db = _get_db()
     report = db.get_completion_report(section_id)
     if report is None:
-        return {"status": "pending"}
+        payload = {
+            "status": "pending",
+            "resource_uri": f"completion-report://{section_id}",
+        }
+        return _compact_tool_result(
+            [
+                f"Completion report for section {section_id} is still pending.",
+                "It is generated automatically after the Anchor phase completes.",
+            ],
+            payload,
+            links=[
+                _resource_link(
+                    f"completion-report://{section_id}",
+                    name="completion-report",
+                    title="Completion report",
+                    description="Full completion report resource for this section.",
+                )
+            ],
+        )
     md, generated_at = report
-    return {
+    payload = {
         "status": "ready",
         "markdown": md,
         "generated_at": generated_at.isoformat() if generated_at else None,
+        "resource_uri": f"completion-report://{section_id}",
     }
-
+    return _compact_tool_result(
+        [
+            f"Completion report ready for section {section_id}.",
+            f"Preview: {_preview_text(md, 320)}",
+            "Full report is available via the resource link below.",
+        ],
+        payload,
+        links=[
+            _resource_link(
+                f"completion-report://{section_id}",
+                name="completion-report",
+                title="Completion report",
+                description="Full completion report resource for this section.",
+            )
+        ],
+    )
 
 @mcp.tool(
     description=(
@@ -959,7 +1274,7 @@ def resource_material(material_id: str) -> str:
     return json.dumps(payload, indent=2)
 
 
-@mcp.resource("learning_map://{material_id}")
+@mcp.resource("learning_map://{material_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
 def resource_learning_map(material_id: str) -> str:
     lm = _get_db().get_learning_map(int(material_id))
     if lm is None:
@@ -967,7 +1282,12 @@ def resource_learning_map(material_id: str) -> str:
     return lm.map_markdown
 
 
-@mcp.resource("focus_brief://{section_id}")
+@mcp.resource("learning-map://{material_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
+def resource_learning_map_alias(material_id: str) -> str:
+    return resource_learning_map(material_id)
+
+
+@mcp.resource("focus_brief://{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
 def resource_focus_brief(section_id: str) -> str:
     s = _get_db().get_section(int(section_id))
     if s is None or s.focus_brief is None:
@@ -980,7 +1300,12 @@ def resource_focus_brief(section_id: str) -> str:
     )
 
 
-@mcp.resource("notes://{material_id}")
+@mcp.resource("focus-brief://{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
+def resource_focus_brief_alias(section_id: str) -> str:
+    return resource_focus_brief(section_id)
+
+
+@mcp.resource("notes://{material_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
 def resource_notes_material(material_id: str) -> str:
     mid = int(material_id)
     sections = _get_db().get_sections(mid)
@@ -994,7 +1319,7 @@ def resource_notes_material(material_id: str) -> str:
     return "\n\n---\n\n".join(parts)
 
 
-@mcp.resource("notes://{material_id}/{section_id}")
+@mcp.resource("notes://{material_id}/{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
 def resource_notes_section(material_id: str, section_id: str) -> str:
     mid = int(material_id)
     s = _get_db().get_section(int(section_id))
@@ -1005,7 +1330,16 @@ def resource_notes_section(material_id: str, section_id: str) -> str:
     return s.notes
 
 
-@mcp.resource("section_state://{section_id}")
+@mcp.resource("section://{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
+def resource_section(section_id: str) -> str:
+    s = _get_db().get_section(int(section_id))
+    if s is None:
+        return f"# Section\n\n_Section {section_id} not found._\n"
+    title = s.title or "(untitled)"
+    return f"# §{s.order_index}: {title}\n\n{s.content}"
+
+
+@mcp.resource("section_state://{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
 def resource_section_state(section_id: str) -> str:
     s = _get_db().get_section(int(section_id))
     if s is None:
@@ -1020,13 +1354,23 @@ def resource_section_state(section_id: str) -> str:
     )
 
 
-@mcp.resource("completion_report://{section_id}")
+@mcp.resource("section-state://{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
+def resource_section_state_alias(section_id: str) -> str:
+    return resource_section_state(section_id)
+
+
+@mcp.resource("completion_report://{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
 def resource_completion_report(section_id: str) -> str:
     report = _get_db().get_completion_report(int(section_id))
     if report is None:
         return "# Completion report\n\n_Pending — complete the Anchor phase to generate._\n"
     md, _ = report
     return md
+
+
+@mcp.resource("completion-report://{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
+def resource_completion_report_alias(section_id: str) -> str:
+    return resource_completion_report(section_id)
 
 
 @mcp.resource("library://")
@@ -1206,12 +1550,12 @@ def resource_weekly_report() -> str:
     return svc_render_weekly_md(rep)
 
 
-@mcp.resource("evaluations://{section_id}")
+@mcp.resource("evaluations://{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
 def resource_evaluations(section_id: str) -> str:
     return json.dumps(_get_db().list_evaluations(int(section_id)), indent=2)
 
 
-@mcp.resource("plan://{material_id}")
+@mcp.resource("plan://{material_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
 def resource_study_plan(material_id: str) -> str:
     return json.dumps(svc_plan_study(_get_db(), int(material_id)), indent=2)
 
