@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 
 from ..db import DB
+from ..language import detect_source_language, language_instruction
 from ..llm.client import LLM, plain
 from ..llm.prompts import COMPLETION_REPORT_SYSTEM, COMPLETION_REPORT_USER_TEMPLATE
 from .context import build_learning_context, format_context_for_completion
@@ -40,10 +41,17 @@ async def generate_completion_report(
     )
     formatted = format_context_for_completion(context)
 
+    user = (
+        language_instruction(detect_source_language(section.content))
+        + "\n\n"
+        + COMPLETION_REPORT_USER_TEMPLATE
+        + "\n\n"
+        + formatted
+    )
     report_md = await llm.complete(
         task="completion_report",
         system=COMPLETION_REPORT_SYSTEM,
-        blocks=plain(COMPLETION_REPORT_USER_TEMPLATE + "\n\n" + formatted),
+        blocks=plain(user),
         max_tokens=1500,
         temperature=0.4,
     )

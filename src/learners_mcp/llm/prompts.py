@@ -13,6 +13,8 @@ Conventions:
 from __future__ import annotations
 
 
+LANGUAGE_POLICY_VERSION = 2
+
 SOURCE_ARTIFACT_LANGUAGE_POLICY = (
     "Language policy: infer the source material's dominant language and write "
     "generated learner artifacts in that same language. Preserve original "

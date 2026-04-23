@@ -14,6 +14,7 @@ dependencies = [
     "litellm>=1.63.0,<2",
     "pyyaml>=6.0",
     "langchain-text-splitters>=0.3.0",
+    "lingua-language-detector>=2.2.0,<3",
     "markitdown[all]>=0.0.1",
     "genanki>=0.13.0",
     "youtube-transcript-api>=1.0.0",

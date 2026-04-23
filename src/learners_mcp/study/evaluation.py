@@ -14,6 +14,7 @@ import json
 from typing import Any
 
 from ..db import DB
+from ..language import detect_source_language, language_instruction
 from ..llm.client import LLM, cached_source, plain
 from ..llm.prompts import EVALUATE_PHASE_SYSTEM, EVALUATE_PHASE_USER_TEMPLATE
 from .phases import PHASES
@@ -53,7 +54,8 @@ async def evaluate_phase_response(
             "\n\n## Rolling summary (prior sections)\n\n" + section.rolling_summary
         )
 
-    user = EVALUATE_PHASE_USER_TEMPLATE.format(phase=phase) + (
+    user = language_instruction(detect_source_language(source_body)) + "\n\n"
+    user += EVALUATE_PHASE_USER_TEMPLATE.format(phase=phase) + (
         f"\n\n## Learner's {phase}-phase response\n\n{response}"
     )
     analysis = await llm.complete_json(

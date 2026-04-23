@@ -41,6 +41,7 @@ async def extract_notes(
     llm: LLM,
     section_content: str,
     section_ref: int,
+    language_instruction: str | None = None,
 ) -> str:
     """Return polished Markdown notes for one section.
 
@@ -62,6 +63,8 @@ async def extract_notes(
         )
 
         map_user = MAP_USER_TEMPLATE.format(prior_tldr=tldr or "(none)", section_ref=section_ref)
+        if language_instruction:
+            map_user = f"{language_instruction}\n\n" + map_user
         map_out = await llm.complete(
             task="notes_map",
             system=MAP_SYSTEM,
@@ -72,6 +75,8 @@ async def extract_notes(
         mapped.append(map_out)
 
         tldr_user = TLDR_USER_TEMPLATE.format(prior_tldr=tldr or "(none)")
+        if language_instruction:
+            tldr_user = f"{language_instruction}\n\n" + tldr_user
         tldr = await llm.complete(
             task="notes_tldr",
             system=TLDR_SYSTEM,
@@ -81,6 +86,8 @@ async def extract_notes(
         )
 
     reduce_user = REDUCE_USER_TEMPLATE.format(notes="\n\n---\n\n".join(mapped))
+    if language_instruction:
+        reduce_user = f"{language_instruction}\n\n" + reduce_user
     reduced = await llm.complete(
         task="notes_reduce",
         system=REDUCE_SYSTEM,
@@ -90,6 +97,8 @@ async def extract_notes(
     )
 
     polish_user = CONSISTENCY_USER_TEMPLATE.format(notes=reduced)
+    if language_instruction:
+        polish_user = f"{language_instruction}\n\n" + polish_user
     polished = await llm.complete(
         task="notes_polish",
         system=CONSISTENCY_SYSTEM,

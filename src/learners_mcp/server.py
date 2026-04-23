@@ -283,6 +283,14 @@ def _material_id_for_section(section_id: int) -> int:
     return s.material_id
 
 
+def _source_language_code(material_id: int) -> str | None:
+    material = _get_db().get_material(material_id)
+    if material is None:
+        return None
+    source_language = (material.ingestion_status or {}).get("source_language") or {}
+    return source_language.get("code")
+
+
 # --------------------- tools: ingestion + preparation ---------------------
 
 
@@ -408,7 +416,12 @@ def get_focus_brief(section_id: int) -> dict[str, Any]:
         "order_index": s.order_index,
         "title": s.title,
         "brief": s.focus_brief,
-        "markdown": render_focus_brief_markdown(s.focus_brief, s.order_index, s.title),
+        "markdown": render_focus_brief_markdown(
+            s.focus_brief,
+            s.order_index,
+            s.title,
+            language_code=_source_language_code(s.material_id),
+        ),
     }
 
 
@@ -492,7 +505,12 @@ async def start_section(section_id: int, material_id: int | str | None = None) -
         "content": s.content,
         "focus_brief": s.focus_brief,
         "focus_brief_markdown": (
-            render_focus_brief_markdown(s.focus_brief, s.order_index, s.title)
+            render_focus_brief_markdown(
+                s.focus_brief,
+                s.order_index,
+                s.title,
+                language_code=_source_language_code(s.material_id),
+            )
             if s.focus_brief
             else None
         ),
@@ -954,7 +972,12 @@ def resource_focus_brief(section_id: str) -> str:
     s = _get_db().get_section(int(section_id))
     if s is None or s.focus_brief is None:
         return "# Focus brief\n\n_Pending._\n"
-    return render_focus_brief_markdown(s.focus_brief, s.order_index, s.title)
+    return render_focus_brief_markdown(
+        s.focus_brief,
+        s.order_index,
+        s.title,
+        language_code=_source_language_code(s.material_id),
+    )
 
 
 @mcp.resource("notes://{material_id}")
@@ -1206,7 +1229,12 @@ def _load_phase_context(section_id: int) -> dict[str, Any]:
         "section_ref": _section_ref(s),
         "content": s.content,
         "focus_brief_md": (
-            render_focus_brief_markdown(s.focus_brief, s.order_index, s.title)
+            render_focus_brief_markdown(
+                s.focus_brief,
+                s.order_index,
+                s.title,
+                language_code=_source_language_code(s.material_id),
+            )
             if s.focus_brief
             else None
         ),

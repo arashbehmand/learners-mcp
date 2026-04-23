@@ -16,6 +16,7 @@ from typing import Any
 
 from ..config import artifact_dir, artifact_mirror_enabled
 from ..db import DB
+from ..language import detect_source_language
 from ..orientation.render import render_focus_brief_markdown
 from ..study.progress import material_progress
 
@@ -167,18 +168,19 @@ def _write_json_artifacts(
 def _render_readme(db: DB, material_id: int) -> str:
     material = db.get_material(material_id)
     sections = db.get_sections(material_id)
+    labels = _labels(_material_language_code(db, material_id))
     return "\n".join(
         [
             f"# {material.title}",
             "",
-            "Generated study artifacts for this material.",
+            labels["generated_artifacts"],
             "",
-            f"- Material ID: {material.id}",
-            f"- Source type: {material.source_type or 'unknown'}",
-            f"- Source: {material.source_ref or '(pasted)'}",
-            f"- Sections: {len(sections)}",
+            f"- {labels['material_id']}: {material.id}",
+            f"- {labels['source_type']}: {material.source_type or labels['unknown']}",
+            f"- {labels['source']}: {material.source_ref or labels['pasted']}",
+            f"- {labels['sections']}: {len(sections)}",
             "",
-            "## Files",
+            f"## {labels['files']}",
             "",
             *[f"- `{name}`" for name in MARKDOWN_FILES if name != "README.md"],
             "",
@@ -188,63 +190,79 @@ def _render_readme(db: DB, material_id: int) -> str:
 
 def _render_sections(db: DB, material_id: int) -> str:
     material = db.get_material(material_id)
-    lines = [f"# Sections — {material.title}", ""]
+    labels = _labels(_material_language_code(db, material_id))
+    lines = [f"# {labels['sections']} — {material.title}", ""]
     for s in db.get_sections(material_id):
         phases_done = [
             phase for phase, blob in (s.phase_data or {}).items()
             if blob.get("completed_at")
         ]
-        lines.append(f"## §{s.order_index}: {s.title or '(untitled)'}")
+        lines.append(f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}")
         lines.append("")
-        lines.append(f"- Section ID: {s.id}")
-        lines.append(f"- Current phase: {s.current_phase}")
-        lines.append(f"- Focus brief: {'ready' if s.focus_brief else 'pending'}")
-        lines.append(f"- Notes: {'ready' if s.notes else 'pending'}")
-        lines.append(f"- Rolling summary: {'ready' if s.rolling_summary else 'pending'}")
-        lines.append(f"- Completed phases: {', '.join(phases_done) if phases_done else 'none'}")
+        lines.append(f"- {labels['section_id']}: {s.id}")
+        lines.append(f"- {labels['current_phase']}: {s.current_phase}")
+        lines.append(f"- {labels['focus_brief']}: {labels['ready'] if s.focus_brief else labels['pending']}")
+        lines.append(f"- {labels['notes']}: {labels['ready'] if s.notes else labels['pending']}")
+        lines.append(f"- {labels['rolling_summary']}: {labels['ready'] if s.rolling_summary else labels['pending']}")
+        lines.append(f"- {labels['completed_phases']}: {', '.join(phases_done) if phases_done else labels['none']}")
         lines.append("")
     return "\n".join(lines)
 
 
 def _render_learning_map(db: DB, material_id: int) -> str:
     lm = db.get_learning_map(material_id)
+    labels = _labels(_material_language_code(db, material_id))
     if lm is None:
-        return "# Learning map\n\nPending. Run `prepare_material` to generate it.\n"
+        return f"# {labels['learning_map']}\n\n{labels['pending_prepare']}\n"
     return lm.map_markdown.rstrip() + "\n"
 
 
 def _render_focus_briefs(db: DB, material_id: int) -> str:
     material = db.get_material(material_id)
-    parts = [f"# Focus briefs — {material.title}"]
+    language_code = _material_language_code(db, material_id)
+    labels = _labels(language_code)
+    parts = [f"# {labels['focus_briefs']} — {material.title}"]
     for s in db.get_sections(material_id):
         if s.focus_brief:
-            parts.append(render_focus_brief_markdown(s.focus_brief, s.order_index, s.title))
+            parts.append(
+                render_focus_brief_markdown(
+                    s.focus_brief,
+                    s.order_index,
+                    s.title,
+                    language_code=language_code,
+                )
+            )
         else:
-            parts.append(f"## §{s.order_index}: {s.title or '(untitled)'}\n\nPending.\n")
+            parts.append(
+                f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}\n\n"
+                f"{labels['pending']}.\n"
+            )
     return "\n\n---\n\n".join(parts).rstrip() + "\n"
 
 
 def _render_notes(db: DB, material_id: int) -> str:
     material = db.get_material(material_id)
-    parts = [f"# Notes — {material.title}"]
+    labels = _labels(_material_language_code(db, material_id))
+    parts = [f"# {labels['notes']} — {material.title}"]
     for s in db.get_sections(material_id):
-        parts.append(f"## §{s.order_index}: {s.title or '(untitled)'}")
-        parts.append(s.notes or "Pending. Run `prepare_material(..., scope='notes')`.")
+        parts.append(f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}")
+        parts.append(s.notes or labels["pending_notes"])
     return "\n\n".join(parts).rstrip() + "\n"
 
 
 def _render_progress(db: DB, material_id: int) -> str:
     progress = material_progress(db, material_id)
+    labels = _labels(_material_language_code(db, material_id))
     return "\n".join(
         [
-            f"# Progress — {progress['title']}",
+            f"# {labels['progress']} — {progress['title']}",
             "",
-            f"- Sections completed: {progress['sections_completed']} / {progress['sections_total']}",
-            f"- Flashcards: {progress['flashcards_total']}",
-            f"- Due flashcards: {progress['flashcards_due']}",
-            f"- Mastered flashcards: {progress['flashcards_mastered']}",
-            f"- Learning map: {'ready' if progress['has_learning_map'] else 'pending'}",
-            f"- Last activity: {progress['last_activity'] or 'none'}",
+            f"- {labels['sections_completed']}: {progress['sections_completed']} / {progress['sections_total']}",
+            f"- {labels['flashcards']}: {progress['flashcards_total']}",
+            f"- {labels['due_flashcards']}: {progress['flashcards_due']}",
+            f"- {labels['mastered_flashcards']}: {progress['flashcards_mastered']}",
+            f"- {labels['learning_map']}: {labels['ready'] if progress['has_learning_map'] else labels['pending']}",
+            f"- {labels['last_activity']}: {progress['last_activity'] or labels['none']}",
             "",
         ]
     )
@@ -252,56 +270,61 @@ def _render_progress(db: DB, material_id: int) -> str:
 
 def _render_phase_responses(db: DB, material_id: int) -> str:
     material = db.get_material(material_id)
-    parts = [f"# Phase responses — {material.title}"]
+    labels = _labels(_material_language_code(db, material_id))
+    parts = [f"# {labels['phase_responses']} — {material.title}"]
     for s in db.get_sections(material_id):
-        parts.append(f"## §{s.order_index}: {s.title or '(untitled)'}")
+        parts.append(f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}")
         if not s.phase_data:
-            parts.append("No recorded responses.")
+            parts.append(labels["no_recorded_responses"])
             continue
         for phase, blob in s.phase_data.items():
             parts.append(f"### {phase}")
-            response = blob.get("response") or "(no response text)"
+            response = blob.get("response") or labels["no_response_text"]
             parts.append(str(response))
             if blob.get("completed_at"):
-                parts.append(f"\nCompleted: {blob['completed_at']}")
+                parts.append(f"\n{labels['completed']}: {blob['completed_at']}")
     return "\n\n".join(parts).rstrip() + "\n"
 
 
 def _render_rolling_summaries(db: DB, material_id: int) -> str:
     material = db.get_material(material_id)
-    parts = [f"# Rolling summaries — {material.title}"]
+    labels = _labels(_material_language_code(db, material_id))
+    parts = [f"# {labels['rolling_summaries']} — {material.title}"]
     for s in db.get_sections(material_id):
-        parts.append(f"## §{s.order_index}: {s.title or '(untitled)'}")
-        parts.append(s.rolling_summary or "Pending.")
+        parts.append(f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}")
+        parts.append(s.rolling_summary or f"{labels['pending']}.")
     return "\n\n".join(parts).rstrip() + "\n"
 
 
 def _render_flashcards(db: DB, material_id: int) -> str:
     material = db.get_material(material_id)
     cards = db.list_flashcards(material_id=material_id)
-    parts = [f"# Flashcards — {material.title}"]
+    labels = _labels(_material_language_code(db, material_id))
+    parts = [f"# {labels['flashcards']} — {material.title}"]
     if not cards:
-        parts.append("No flashcards yet.")
+        parts.append(labels["no_flashcards"])
     for c in cards:
-        section = f"§{c.section_id}" if c.section_id else "material"
-        parts.append(f"## Card {c.id} ({section})")
+        section = f"§{c.section_id}" if c.section_id else labels["material"]
+        parts.append(f"## {labels['card']} {c.id} ({section})")
         parts.append(f"**Q:** {c.question}")
         parts.append(f"**A:** {c.answer}")
         parts.append(
-            f"Reviews: {c.review_count}; interval: {c.interval_days} days; "
-            f"next review: {c.next_review.isoformat()}"
+            f"{labels['reviews']}: {c.review_count}; {labels['interval']}: "
+            f"{c.interval_days} {labels['days']}; {labels['next_review']}: "
+            f"{c.next_review.isoformat()}"
         )
     return "\n\n".join(parts).rstrip() + "\n"
 
 
 def _render_study_plan(study_plan: dict[str, Any] | None) -> str:
+    labels = _labels((study_plan or {}).get("source_language", {}).get("code"))
     if not study_plan:
-        return "# Study plan\n\nNo study plan has been generated in this export.\n"
-    parts = ["# Study plan"]
+        return f"# {labels['study_plan']}\n\n{labels['no_study_plan']}\n"
+    parts = [f"# {labels['study_plan']}"]
     for session in study_plan.get("sessions", []):
         sections = ", ".join(str(sid) for sid in session.get("section_ids", []))
         parts.append(
-            f"- {session.get('day')}: sections {sections} "
+            f"- {session.get('day')}: {labels['sections']} {sections} "
             f"({session.get('estimated_minutes', '?')} min)"
         )
     return "\n".join(parts).rstrip() + "\n"
@@ -309,30 +332,34 @@ def _render_study_plan(study_plan: dict[str, Any] | None) -> str:
 
 def _render_completion_reports(db: DB, material_id: int) -> str:
     material = db.get_material(material_id)
-    parts = [f"# Completion reports — {material.title}"]
+    labels = _labels(_material_language_code(db, material_id))
+    parts = [f"# {labels['completion_reports']} — {material.title}"]
     any_report = False
     for s in db.get_sections(material_id):
         report = db.get_completion_report(s.id)
         if report:
             any_report = True
-            parts.append(f"## §{s.order_index}: {s.title or '(untitled)'}")
+            parts.append(f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}")
             parts.append(report[0])
     if not any_report:
-        parts.append("No completion reports yet.")
+        parts.append(labels["no_completion_reports"])
     return "\n\n".join(parts).rstrip() + "\n"
 
 
 def _render_evaluations(db: DB, material_id: int) -> str:
     material = db.get_material(material_id)
-    parts = [f"# Evaluations — {material.title}"]
+    labels = _labels(_material_language_code(db, material_id))
+    parts = [f"# {labels['evaluations']} — {material.title}"]
     any_eval = False
     for s in db.get_sections(material_id):
         for ev in db.list_evaluations(s.id):
             any_eval = True
-            parts.append(f"## §{s.order_index}: {s.title or '(untitled)'} — {ev['phase']}")
+            parts.append(
+                f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']} — {ev['phase']}"
+            )
             parts.append(ev["markdown"])
     if not any_eval:
-        parts.append("No evaluations yet.")
+        parts.append(labels["no_evaluations"])
     return "\n\n".join(parts).rstrip() + "\n"
 
 
@@ -437,3 +464,112 @@ def _atomic_write_text(path: Path, text: str, suffix: str = ".tmp") -> None:
     tmp = path.with_name(path.name + suffix)
     tmp.write_text(text, encoding="utf-8")
     tmp.replace(path)
+
+
+def _material_language_code(db: DB, material_id: int) -> str | None:
+    material = db.get_material(material_id)
+    if material and material.ingestion_status.get("source_language"):
+        return material.ingestion_status["source_language"].get("code")
+    sections = db.get_sections(material_id)
+    sample = "\n\n".join(s.content for s in sections[:3])
+    return detect_source_language(sample).get("code") if sample else None
+
+
+def _labels(language_code: str | None) -> dict[str, str]:
+    if language_code == "fa":
+        return {
+            "generated_artifacts": "آثار آموزشی تولیدشده برای این منبع.",
+            "material_id": "شناسه منبع",
+            "source_type": "نوع منبع",
+            "source": "منبع",
+            "sections": "بخش‌ها",
+            "files": "فایل‌ها",
+            "unknown": "نامشخص",
+            "pasted": "(متن واردشده)",
+            "untitled_parenthesized": "(بدون عنوان)",
+            "section_id": "شناسه بخش",
+            "current_phase": "مرحله فعلی",
+            "focus_brief": "راهنمای تمرکز",
+            "focus_briefs": "راهنماهای تمرکز",
+            "notes": "یادداشت‌ها",
+            "rolling_summary": "خلاصه پیوسته",
+            "rolling_summaries": "خلاصه‌های پیوسته",
+            "completed_phases": "مرحله‌های تکمیل‌شده",
+            "ready": "آماده",
+            "pending": "در انتظار",
+            "none": "هیچ",
+            "learning_map": "نقشه یادگیری",
+            "pending_prepare": "در انتظار. برای تولید آن `prepare_material` را اجرا کنید.",
+            "pending_notes": "در انتظار. `prepare_material(..., scope='notes')` را اجرا کنید.",
+            "progress": "پیشرفت",
+            "sections_completed": "بخش‌های تکمیل‌شده",
+            "flashcards": "فلش‌کارت‌ها",
+            "due_flashcards": "فلش‌کارت‌های موعددار",
+            "mastered_flashcards": "فلش‌کارت‌های مسلط‌شده",
+            "last_activity": "آخرین فعالیت",
+            "phase_responses": "پاسخ‌های مرحله‌ای",
+            "no_recorded_responses": "پاسخی ثبت نشده است.",
+            "no_response_text": "(متن پاسخ وجود ندارد)",
+            "completed": "تکمیل‌شده",
+            "no_flashcards": "هنوز فلش‌کارتی وجود ندارد.",
+            "material": "منبع",
+            "card": "کارت",
+            "reviews": "مرورها",
+            "interval": "فاصله",
+            "days": "روز",
+            "next_review": "مرور بعدی",
+            "study_plan": "برنامه مطالعه",
+            "no_study_plan": "در این خروجی هنوز برنامه مطالعه‌ای تولید نشده است.",
+            "completion_reports": "گزارش‌های تکمیل",
+            "no_completion_reports": "هنوز گزارش تکمیلی وجود ندارد.",
+            "evaluations": "ارزیابی‌ها",
+            "no_evaluations": "هنوز ارزیابی‌ای وجود ندارد.",
+        }
+    return {
+        "generated_artifacts": "Generated study artifacts for this material.",
+        "material_id": "Material ID",
+        "source_type": "Source type",
+        "source": "Source",
+        "sections": "Sections",
+        "files": "Files",
+        "unknown": "unknown",
+        "pasted": "(pasted)",
+        "untitled_parenthesized": "(untitled)",
+        "section_id": "Section ID",
+        "current_phase": "Current phase",
+        "focus_brief": "Focus brief",
+        "focus_briefs": "Focus briefs",
+        "notes": "Notes",
+        "rolling_summary": "Rolling summary",
+        "rolling_summaries": "Rolling summaries",
+        "completed_phases": "Completed phases",
+        "ready": "ready",
+        "pending": "pending",
+        "none": "none",
+        "learning_map": "Learning map",
+        "pending_prepare": "Pending. Run `prepare_material` to generate it.",
+        "pending_notes": "Pending. Run `prepare_material(..., scope='notes')`.",
+        "progress": "Progress",
+        "sections_completed": "Sections completed",
+        "flashcards": "Flashcards",
+        "due_flashcards": "Due flashcards",
+        "mastered_flashcards": "Mastered flashcards",
+        "last_activity": "Last activity",
+        "phase_responses": "Phase responses",
+        "no_recorded_responses": "No recorded responses.",
+        "no_response_text": "(no response text)",
+        "completed": "Completed",
+        "no_flashcards": "No flashcards yet.",
+        "material": "material",
+        "card": "Card",
+        "reviews": "Reviews",
+        "interval": "interval",
+        "days": "days",
+        "next_review": "next review",
+        "study_plan": "Study plan",
+        "no_study_plan": "No study plan has been generated in this export.",
+        "completion_reports": "Completion reports",
+        "no_completion_reports": "No completion reports yet.",
+        "evaluations": "Evaluations",
+        "no_evaluations": "No evaluations yet.",
+    }

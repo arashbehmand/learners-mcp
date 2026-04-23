@@ -37,6 +37,8 @@ async def generate_material_map(
     section_index: list[tuple[int, str | None]],
     learner_notes: str | None = None,
     known_concepts_block: str | None = None,
+    language_instruction: str | None = None,
+    language_code: str | None = None,
 ) -> tuple[dict[str, Any], str]:
     """Generate the material-level learning map.
 
@@ -54,6 +56,8 @@ async def generate_material_map(
         f"- §{idx}: {title or '(untitled)'}" for idx, title in section_index
     )
     user_text = LEARNING_MAP_USER_TEMPLATE.format(section_index=index_str)
+    if language_instruction:
+        user_text = f"{language_instruction}\n\n" + user_text
     if learner_notes and learner_notes.strip():
         user_text += (
             "\n\n## Learner's adjustment notes (apply these when shaping the map)\n\n"
@@ -75,7 +79,7 @@ async def generate_material_map(
         temperature=0.2,
     )
 
-    return payload, render_map_markdown(payload)
+    return payload, render_map_markdown(payload, language_code=language_code)
 
 
 async def generate_focus_brief(
@@ -83,6 +87,7 @@ async def generate_focus_brief(
     full_material_text: str,
     order_index: int,
     title: str | None,
+    language_instruction: str | None = None,
 ) -> dict[str, Any]:
     """Generate a pre-study focus brief for one section.
 
@@ -92,6 +97,8 @@ async def generate_focus_brief(
     user_text = FOCUS_BRIEF_USER_TEMPLATE.format(
         order_index=order_index, title=title or "(untitled)"
     )
+    if language_instruction:
+        user_text = f"{language_instruction}\n\n" + user_text
     blocks = cached_source(
         label="FULL MATERIAL TEXT (cached):",
         body=full_material_text,

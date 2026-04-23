@@ -16,6 +16,7 @@ import logging
 
 from ..config import ROLLING_CONTEXT_MAX_CHARS
 from ..db import DB
+from ..language import detect_source_language, language_instruction
 from ..llm.client import LLM, plain
 from ..llm.prompts import ROLLING_SUMMARY_SYSTEM, ROLLING_SUMMARY_USER_TEMPLATE
 
@@ -48,6 +49,7 @@ async def ensure_rolling_summary(db: DB, llm: LLM, section_id: int) -> str | Non
         section_title=section.title or f"Section {section.order_index}",
         order_index=section.order_index,
     )
+    user = language_instruction(detect_source_language(section.content)) + "\n\n" + user
     out = await llm.complete(
         task="rolling_summary",
         system=ROLLING_SUMMARY_SYSTEM,

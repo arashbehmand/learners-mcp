@@ -13,6 +13,7 @@ import logging
 from datetime import datetime, timezone
 
 from ..db import DB
+from ..language import detect_source_language, language_instruction
 from ..llm.client import LLM, plain
 from ..llm.prompts import SUGGEST_CARDS_SYSTEM, SUGGEST_CARDS_USER_TEMPLATE
 from ..study.context import build_learning_context, format_context_for_flashcards
@@ -45,6 +46,7 @@ async def suggest_flashcards(
     formatted = format_context_for_flashcards(context)
 
     user = SUGGEST_CARDS_USER_TEMPLATE.format(n=n, section_ref=section.order_index)
+    user = language_instruction(detect_source_language(section.content)) + "\n\n" + user
     payload = await llm.complete_json(
         task="flashcards",
         system=SUGGEST_CARDS_SYSTEM,
