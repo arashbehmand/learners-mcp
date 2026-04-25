@@ -3,7 +3,6 @@ from __future__ import annotations
 from learners_mcp.llm import prompts
 from learners_mcp.study import qa
 
-
 ARTIFACT_SYSTEM_PROMPTS = [
     prompts.MAP_SYSTEM,
     prompts.TLDR_SYSTEM,

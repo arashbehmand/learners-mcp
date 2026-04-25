@@ -62,7 +62,9 @@ async def extract_notes(
             body=chunk,
         )
 
-        map_user = MAP_USER_TEMPLATE.format(prior_tldr=tldr or "(none)", section_ref=section_ref)
+        map_user = MAP_USER_TEMPLATE.format(
+            prior_tldr=tldr or "(none)", section_ref=section_ref
+        )
         if language_instruction:
             map_user = f"{language_instruction}\n\n" + map_user
         map_out = await llm.complete(

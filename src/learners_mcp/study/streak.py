@@ -24,7 +24,11 @@ def compute_streak(db: DB, today: date | None = None) -> dict[str, Any]:
     today = today or datetime.now(timezone.utc).date()
     active_days = _active_days(db)
     if not active_days:
-        return {"current_streak_days": 0, "longest_streak_days": 0, "today_active": False}
+        return {
+            "current_streak_days": 0,
+            "longest_streak_days": 0,
+            "today_active": False,
+        }
 
     today_active = today in active_days
 
@@ -59,7 +63,9 @@ def weekly_report(db: DB, today: date | None = None) -> dict[str, Any]:
     today = today or datetime.now(timezone.utc).date()
     window_start = today - timedelta(days=6)  # 7-day window inclusive
     start_dt = datetime.combine(window_start, datetime.min.time(), tzinfo=timezone.utc)
-    end_dt = datetime.combine(today + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+    end_dt = datetime.combine(
+        today + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc
+    )
 
     materials = db.list_materials()
     sections_touched = 0

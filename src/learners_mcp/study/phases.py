@@ -12,7 +12,6 @@ from dataclasses import dataclass
 
 from ..db import DB
 
-
 PHASES = ("preview", "explain", "question", "anchor")
 
 

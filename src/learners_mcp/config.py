@@ -11,7 +11,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-
 CHUNK_SIZE = 30_000
 CHUNK_OVERLAP = 2_000
 MIN_SECTION_SIZE = 2_000

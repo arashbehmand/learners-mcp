@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 
-from ..db import DB, Material, Section
+from ..db import DB, Section
 from ..language import detect_source_language, language_instruction
 from ..llm.client import LLM
 from ..llm.prompts import LANGUAGE_POLICY_VERSION
@@ -51,9 +51,7 @@ def ingest(db: DB, loaded: LoadedMaterial, content_hash: str) -> int:
         db.create_section(
             material_id=material_id, title=title, content=content, order_index=i + 1
         )
-    log.info(
-        "ingest: created material %d with %d sections", material_id, len(sections)
-    )
+    log.info("ingest: created material %d with %d sections", material_id, len(sections))
     return material_id
 
 
@@ -124,7 +122,9 @@ async def prepare_material(
     # --- Focus briefs (per section) ---
     for s in sections:
         if scope not in ("all", "focus_briefs"):
-            report["focus_briefs"][s.order_index] = "ready" if s.focus_brief else "pending"
+            report["focus_briefs"][s.order_index] = (
+                "ready" if s.focus_brief else "pending"
+            )
             continue
         focus_current = _policy_current(
             policy_meta.get("focus_briefs", {}).get(str(s.order_index)),
@@ -201,7 +201,9 @@ def preparation_status(db: DB, material_id: int) -> dict:
     full_text = _concat_sections(sections)
     source_language = detect_source_language(full_text)
     source_language_code = source_language["code"]
-    policy_meta: dict = dict((material.ingestion_status or {}).get("artifact_language_policy") or {})
+    policy_meta: dict = dict(
+        (material.ingestion_status or {}).get("artifact_language_policy") or {}
+    )
     focus_state: dict[int, str] = {
         s.order_index: (
             "ready"
@@ -247,7 +249,11 @@ def preparation_status(db: DB, material_id: int) -> dict:
 def _concat_sections(sections: list[Section]) -> str:
     parts: list[str] = []
     for s in sections:
-        header = f"# §{s.order_index}: {s.title}\n\n" if s.title else f"# §{s.order_index}\n\n"
+        header = (
+            f"# §{s.order_index}: {s.title}\n\n"
+            if s.title
+            else f"# §{s.order_index}\n\n"
+        )
         parts.append(header + s.content)
     return "\n\n".join(parts)
 

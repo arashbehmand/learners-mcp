@@ -44,7 +44,9 @@ def _labels(language_code: str | None) -> dict[str, str]:
     }
 
 
-def render_map_markdown(payload: dict[str, Any], language_code: str | None = None) -> str:
+def render_map_markdown(
+    payload: dict[str, Any], language_code: str | None = None
+) -> str:
     """Render the structured map as friendly markdown for human reading."""
     labels = _labels(language_code)
     out: list[str] = []
@@ -53,7 +55,9 @@ def render_map_markdown(payload: dict[str, Any], language_code: str | None = Non
     if payload.get("difficulty"):
         out.append(f"**{labels['difficulty']}:** {payload['difficulty']}  ")
     if payload.get("time_estimate_hours"):
-        out.append(f"**{labels['estimated_time']}:** ~{payload['time_estimate_hours']}h\n")
+        out.append(
+            f"**{labels['estimated_time']}:** ~{payload['time_estimate_hours']}h\n"
+        )
 
     out.append(f"\n## {labels['objectives']}\n")
     for obj in payload.get("objectives", []):

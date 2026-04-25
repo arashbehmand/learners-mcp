@@ -7,12 +7,9 @@ structural check, not a behavior test.
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
 from learners_mcp.server import mcp
-
 
 EXPECTED_TOOLS = {
     # v0 surface
@@ -94,9 +91,9 @@ async def test_tools_list():
 async def test_resource_templates_list():
     templates = await mcp.list_resource_templates()
     uris = {t.uriTemplate for t in templates}
-    assert EXPECTED_RESOURCE_TEMPLATES <= uris, (
-        f"missing: {EXPECTED_RESOURCE_TEMPLATES - uris}"
-    )
+    assert (
+        EXPECTED_RESOURCE_TEMPLATES <= uris
+    ), f"missing: {EXPECTED_RESOURCE_TEMPLATES - uris}"
 
 
 @pytest.mark.asyncio

@@ -12,7 +12,6 @@ Conventions:
 
 from __future__ import annotations
 
-
 LANGUAGE_POLICY_VERSION = 2
 
 SOURCE_ARTIFACT_LANGUAGE_POLICY = (
@@ -168,9 +167,7 @@ Be opinionated. This is orientation scaffolding, not a summary.
 
 # ================= Rolling summary =================
 
-ROLLING_SUMMARY_SYSTEM = (
-    "You build concise, narrative-coherent cumulative summaries across learning sections."
-)
+ROLLING_SUMMARY_SYSTEM = "You build concise, narrative-coherent cumulative summaries across learning sections."
 
 ROLLING_SUMMARY_USER_TEMPLATE = """\
 Update the rolling summary to include the current section.

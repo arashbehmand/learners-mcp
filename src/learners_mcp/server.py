@@ -11,12 +11,12 @@ LLM calls during chat.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import logging
+import os
 import sys
 import types
-import importlib.util
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -38,53 +38,49 @@ def _install_lightweight_mcp_package() -> None:
 
 _install_lightweight_mcp_package()
 
-from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.prompts.base import Message, UserMessage
-from mcp.types import (
-    Annotations as MCPAnnotations,
-    CallToolResult,
-    ResourceLink,
-    TextContent,
-)
+# noqa: E402 justified: _install_lightweight_mcp_package must run before these imports.
+from mcp.server.fastmcp import FastMCP  # noqa: E402
+from mcp.server.fastmcp.prompts.base import Message, UserMessage  # noqa: E402
+from mcp.types import Annotations as MCPAnnotations  # noqa: E402
+from mcp.types import CallToolResult, ResourceLink, TextContent  # noqa: E402
 
-from . import __version__
-from .config import ensure_data_dir
-from .db import DB
-from .db import content_hash as hash_text
-from .export.anki import export_apkg as svc_export_apkg
-from .export.anki import export_csv as svc_export_csv
-from .export.artifacts import auto_export_markdown_artifacts as svc_auto_export_artifacts
-from .export.artifacts import export_material_artifacts as svc_export_material_artifacts
-from .export.markdown import export_notes_markdown as svc_export_notes
-from .export.portable import export_project as svc_export_project
-from .export.portable import import_project as svc_import_project
-from .ingestion.loader import load as loader_load
-from .ingestion.loader import load_text as loader_load_text
-from .ingestion.loader import preload_markitdown as loader_preload_markitdown
+from . import __version__  # noqa: E402
+from .config import ensure_data_dir  # noqa: E402
+from .db import DB  # noqa: E402
+from .db import content_hash as hash_text  # noqa: E402
+from .export.anki import export_apkg as svc_export_apkg  # noqa: E402
+from .export.anki import export_csv as svc_export_csv  # noqa: E402
+from .export.artifacts import (
+    auto_export_markdown_artifacts as svc_auto_export_artifacts,
+)  # noqa: E402
+from .export.artifacts import (
+    export_material_artifacts as svc_export_material_artifacts,
+)  # noqa: E402
+from .export.markdown import export_notes_markdown as svc_export_notes  # noqa: E402
+from .export.portable import export_project as svc_export_project  # noqa: E402
+from .export.portable import import_project as svc_import_project  # noqa: E402
+from .ingestion.loader import load as loader_load  # noqa: E402
+from .ingestion.loader import load_text as loader_load_text  # noqa: E402
+from .ingestion.loader import (
+    preload_markitdown as loader_preload_markitdown,
+)  # noqa: E402
 from .llm.prompts import (
-    ANCHOR_COACH_SYSTEM,
+    ANCHOR_COACH_SYSTEM,  # noqa: E402
     EXPLAIN_COACH_SYSTEM,
     PREVIEW_COACH_SYSTEM,
     QUESTION_COACH_SYSTEM,
 )
-from .orientation.render import render_focus_brief_markdown
-from .study.phases import (
-    PHASES,
-    next_phase,
-    recommend_next_action as svc_recommend,
-    resolved_current_phase,
-    validate_phase_action,
-)
-from .study.plan import plan_study as svc_plan_study
-from .study.prereqs import check_prerequisites as svc_check_prereqs
-from .study.progress import library_progress as svc_library_progress
-from .study.progress import material_progress as svc_material_progress
-from .study.streak import (
-    compute_streak as svc_compute_streak,
-    render_weekly_markdown as svc_render_weekly_md,
-    weekly_report as svc_weekly_report,
-)
-
+from .orientation.render import render_focus_brief_markdown  # noqa: E402
+from .study.phases import PHASES, next_phase  # noqa: E402
+from .study.phases import recommend_next_action as svc_recommend  # noqa: E402
+from .study.phases import resolved_current_phase, validate_phase_action  # noqa: E402
+from .study.plan import plan_study as svc_plan_study  # noqa: E402
+from .study.prereqs import check_prerequisites as svc_check_prereqs  # noqa: E402
+from .study.progress import library_progress as svc_library_progress  # noqa: E402
+from .study.progress import material_progress as svc_material_progress  # noqa: E402
+from .study.streak import compute_streak as svc_compute_streak  # noqa: E402
+from .study.streak import render_weekly_markdown as svc_render_weekly_md  # noqa: E402
+from .study.streak import weekly_report as svc_weekly_report  # noqa: E402
 
 log = logging.getLogger(__name__)
 
@@ -264,7 +260,9 @@ def _material_brief(m) -> dict[str, Any]:
 
 
 def _section_brief(s) -> dict[str, Any]:
-    phases_done = [p for p in PHASES if (s.phase_data or {}).get(p, {}).get("completed_at")]
+    phases_done = [
+        p for p in PHASES if (s.phase_data or {}).get(p, {}).get("completed_at")
+    ]
     return {
         "section_id": s.id,
         "order_index": s.order_index,
@@ -360,7 +358,9 @@ def _resource_link(
     )
 
 
-def _artifact_location(payload: dict[str, Any], file_name: str | None = None) -> str | None:
+def _artifact_location(
+    payload: dict[str, Any], file_name: str | None = None
+) -> str | None:
     artifact_dir = payload.get("artifact_dir")
     if not artifact_dir:
         return None
@@ -429,13 +429,16 @@ async def ingest_material(
             )
             prep_status = {"status": "not_started", "reason": str(exc)}
 
-    return _with_artifacts({
-        "material_id": material_id,
-        "sections_detected": len(sections),
-        "title": loaded.title,
-        "source_type": loaded.source_type,
-        "preparation": prep_status,
-    }, material_id)
+    return _with_artifacts(
+        {
+            "material_id": material_id,
+            "sections_detected": len(sections),
+            "title": loaded.title,
+            "source_type": loaded.source_type,
+            "preparation": prep_status,
+        },
+        material_id,
+    )
 
 
 @mcp.tool(
@@ -660,7 +663,11 @@ def get_notes(material_id: int, section_id: int | None = None) -> dict[str, Any]
         if s.notes:
             any_ready = True
             parts.append(f"# §{s.order_index}: {s.title or '(untitled)'}\n\n{s.notes}")
-    status = "ready" if all(s.notes for s in sections) else ("partial" if any_ready else "pending")
+    status = (
+        "ready"
+        if all(s.notes for s in sections)
+        else ("partial" if any_ready else "pending")
+    )
     payload = {
         "scope": "material",
         "status": status,
@@ -717,7 +724,9 @@ def list_materials() -> list[dict[str, Any]]:
         "`material_id` is accepted only to validate host retries that include it."
     )
 )
-async def start_section(section_id: int, material_id: int | str | None = None) -> dict[str, Any]:
+async def start_section(
+    section_id: int, material_id: int | str | None = None
+) -> dict[str, Any]:
     db = _get_db()
     s = db.get_section(section_id)
     if s is None:
@@ -730,23 +739,26 @@ async def start_section(section_id: int, material_id: int | str | None = None) -
     await ensure_rolling_summary(db, _get_llm(), section_id)
     s = db.get_section(section_id)
 
-    payload = _with_artifacts({
-        "section": _section_brief(s),
-        "content": s.content,
-        "focus_brief": s.focus_brief,
-        "focus_brief_markdown": (
-            render_focus_brief_markdown(
-                s.focus_brief,
-                s.order_index,
-                s.title,
-                language_code=_source_language_code(s.material_id),
-            )
-            if s.focus_brief
-            else None
-        ),
-        "rolling_summary": s.rolling_summary,
-        "phase_data": s.phase_data,
-    }, s.material_id)
+    payload = _with_artifacts(
+        {
+            "section": _section_brief(s),
+            "content": s.content,
+            "focus_brief": s.focus_brief,
+            "focus_brief_markdown": (
+                render_focus_brief_markdown(
+                    s.focus_brief,
+                    s.order_index,
+                    s.title,
+                    language_code=_source_language_code(s.material_id),
+                )
+                if s.focus_brief
+                else None
+            ),
+            "rolling_summary": s.rolling_summary,
+            "phase_data": s.phase_data,
+        },
+        s.material_id,
+    )
     section_ref = _section_ref(s)
     phase_data = s.phase_data or {}
     recorded = [p for p in PHASES if (phase_data.get(p) or {}).get("response")]
@@ -865,13 +877,16 @@ async def complete_phase(section_id: int, phase: str) -> dict[str, Any]:
         except Exception as exc:  # don't fail the completion if the report errors
             log.warning("completion report failed for section %d: %s", section_id, exc)
 
-    return _with_artifacts({
-        "ok": True,
-        "phase_completed": phase,
-        "current_phase": advanced_to or "anchor",
-        "section_completed": phase == "anchor",
-        "completion_report": completion_report,
-    }, s.material_id)
+    return _with_artifacts(
+        {
+            "ok": True,
+            "phase_completed": phase,
+            "current_phase": advanced_to or "anchor",
+            "section_completed": phase == "anchor",
+            "completion_report": completion_report,
+        },
+        s.material_id,
+    )
 
 
 # --------------------- tools: flashcards ---------------------
@@ -898,7 +913,10 @@ def add_flashcard(section_id: int, question: str, answer: str) -> dict[str, Any]
     if s is None:
         raise KeyError(f"section {section_id} not found")
     fid = db.create_flashcard(
-        material_id=s.material_id, section_id=section_id, question=question, answer=answer
+        material_id=s.material_id,
+        section_id=section_id,
+        question=question,
+        answer=answer,
     )
     return _with_artifacts(
         {"flashcard_id": fid, "section_id": section_id},
@@ -917,7 +935,9 @@ def list_flashcards(
     section_id: int | None = None,
     filter_: str = "all",
 ) -> list[dict[str, Any]]:
-    cards = _get_db().list_flashcards(material_id=material_id, section_id=section_id, filter_=filter_)
+    cards = _get_db().list_flashcards(
+        material_id=material_id, section_id=section_id, filter_=filter_
+    )
     return [
         {
             "flashcard_id": c.id,
@@ -956,7 +976,12 @@ def review_flashcard(flashcard_id: int, knew_it: bool) -> dict[str, Any]:
 def next_due(material_id: int | None = None, n: int = 10) -> list[dict[str, Any]]:
     cards = _get_db().list_flashcards(material_id=material_id, filter_="due")
     return [
-        {"flashcard_id": c.id, "question": c.question, "answer": c.answer, "section_id": c.section_id}
+        {
+            "flashcard_id": c.id,
+            "question": c.question,
+            "answer": c.answer,
+            "section_id": c.section_id,
+        }
         for c in cards[:n]
     ]
 
@@ -1016,7 +1041,11 @@ async def regenerate_map(material_id: int, notes: str | None = None) -> dict[str
 
     full_text_parts: list[str] = []
     for s in sections:
-        header = f"# §{s.order_index}: {s.title}\n\n" if s.title else f"# §{s.order_index}\n\n"
+        header = (
+            f"# §{s.order_index}: {s.title}\n\n"
+            if s.title
+            else f"# §{s.order_index}\n\n"
+        )
         full_text_parts.append(header + s.content)
     full_text = "\n\n".join(full_text_parts)
 
@@ -1036,12 +1065,15 @@ async def regenerate_map(material_id: int, notes: str | None = None) -> dict[str
     )
     db.upsert_learning_map(material_id, payload, md)
     lm = db.get_learning_map(material_id)
-    return _with_artifacts({
-        "ok": True,
-        "regeneration_count": lm.regeneration_count if lm else 0,
-        "map": payload,
-        "markdown": md,
-    }, material_id)
+    return _with_artifacts(
+        {
+            "ok": True,
+            "regeneration_count": lm.regeneration_count if lm else 0,
+            "map": payload,
+            "markdown": md,
+        },
+        material_id,
+    )
 
 
 # --------------------- tools: notes regeneration ---------------------
@@ -1055,9 +1087,7 @@ async def regenerate_map(material_id: int, notes: str | None = None) -> dict[str
         "overwritten; otherwise any already-extracted notes are kept."
     )
 )
-async def extract_notes_now(
-    material_id: int, force: bool = False
-) -> dict[str, Any]:
+async def extract_notes_now(material_id: int, force: bool = False) -> dict[str, Any]:
     db = _get_db()
     llm = _get_llm()
     report = await pipeline_prepare(db, llm, material_id, scope="notes", force=force)
@@ -1121,6 +1151,7 @@ def get_completion_report(section_id: int) -> dict[str, Any]:
         ],
     )
 
+
 @mcp.tool(
     description=(
         "Force regeneration of a completion report for a section. Uses the "
@@ -1167,7 +1198,9 @@ def export_anki(
 
     out = Path(output_path).expanduser()
     if format == "apkg":
-        count = svc_export_apkg(payload, material.title or f"material-{material_id}", out)
+        count = svc_export_apkg(
+            payload, material.title or f"material-{material_id}", out
+        )
     else:
         count = svc_export_csv(payload, out)
     return {"ok": True, "count": count, "path": str(out.resolve())}
@@ -1243,7 +1276,9 @@ def library_dashboard() -> dict[str, Any]:
 def start_background_preparation(
     material_id: int, scope: str = "all", force: bool = False
 ) -> dict[str, Any]:
-    result = _background_start(_get_db(), _get_llm(), material_id, scope=scope, force=force)
+    result = _background_start(
+        _get_db(), _get_llm(), material_id, scope=scope, force=force
+    )
     return _with_artifacts(result, material_id)
 
 
@@ -1319,7 +1354,9 @@ def resource_notes_material(material_id: str) -> str:
     return "\n\n---\n\n".join(parts)
 
 
-@mcp.resource("notes://{material_id}/{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
+@mcp.resource(
+    "notes://{material_id}/{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS
+)
 def resource_notes_section(material_id: str, section_id: str) -> str:
     mid = int(material_id)
     s = _get_db().get_section(int(section_id))
@@ -1359,7 +1396,9 @@ def resource_section_state_alias(section_id: str) -> str:
     return resource_section_state(section_id)
 
 
-@mcp.resource("completion_report://{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
+@mcp.resource(
+    "completion_report://{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS
+)
 def resource_completion_report(section_id: str) -> str:
     report = _get_db().get_completion_report(int(section_id))
     if report is None:
@@ -1368,7 +1407,9 @@ def resource_completion_report(section_id: str) -> str:
     return md
 
 
-@mcp.resource("completion-report://{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS)
+@mcp.resource(
+    "completion-report://{section_id}", annotations=HEAVY_RESOURCE_ANNOTATIONS
+)
 def resource_completion_report_alias(section_id: str) -> str:
     return resource_completion_report(section_id)
 
@@ -1465,7 +1506,9 @@ def weekly_report() -> dict[str, Any]:
 async def evaluate_phase_response(
     section_id: int, phase: str, response: str | None = None
 ) -> dict[str, Any]:
-    result = await svc_evaluate_phase(_get_db(), _get_llm(), section_id, phase, response)
+    result = await svc_evaluate_phase(
+        _get_db(), _get_llm(), section_id, phase, response
+    )
     return _with_artifacts(result, _material_id_for_section(section_id))
 
 
@@ -1475,9 +1518,7 @@ async def evaluate_phase_response(
         "Most recent first."
     )
 )
-def list_evaluations(
-    section_id: int, phase: str | None = None
-) -> list[dict[str, Any]]:
+def list_evaluations(section_id: int, phase: str | None = None) -> list[dict[str, Any]]:
     return _get_db().list_evaluations(section_id, phase=phase)
 
 
@@ -1711,6 +1752,7 @@ def get_phase_prompt(section_id: int, phase: str) -> dict[str, str]:
 
 
 # --------------------- entry point ---------------------
+
 
 def _preload_markitdown_enabled() -> bool:
     return os.environ.get("LEARNERS_MCP_PRELOAD_MARKITDOWN", "").lower() not in {

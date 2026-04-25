@@ -18,7 +18,6 @@ from typing import Any
 
 from ..db import DB
 
-
 DEFAULT_SECTION_MINUTES = 30
 DEFAULT_MINUTES_PER_SESSION = 45
 DEFAULT_DAYS_PER_WEEK = 5
@@ -64,7 +63,9 @@ def plan_study(
             continue
         s = by_index[idx]
         est = DEFAULT_SECTION_MINUTES
-        if s.focus_brief and isinstance(s.focus_brief.get("estimated_minutes"), (int, float)):
+        if s.focus_brief and isinstance(
+            s.focus_brief.get("estimated_minutes"), (int, float)
+        ):
             est = int(s.focus_brief["estimated_minutes"])
         remaining.append((s.id, max(10, est)))
 
@@ -89,7 +90,9 @@ def plan_study(
                 bucket.append(sid)
                 total = est
             sessions.append(
-                ScheduledSession(day=current_day, section_ids=bucket, estimated_minutes=total)
+                ScheduledSession(
+                    day=current_day, section_ids=bucket, estimated_minutes=total
+                )
             )
         current_day += timedelta(days=1)
 

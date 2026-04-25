@@ -6,7 +6,9 @@ def supports_anthropic_blocks(model: str) -> bool:
         return True
     if model.startswith("claude-"):
         return True
-    if model.startswith("bedrock/anthropic.") or (model.startswith("bedrock/") and "claude" in model):
+    if model.startswith("bedrock/anthropic.") or (
+        model.startswith("bedrock/") and "claude" in model
+    ):
         return True
     if model.startswith("vertex_ai/claude"):
         return True

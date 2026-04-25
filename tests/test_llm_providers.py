@@ -1,5 +1,5 @@
-from learners_mcp.llm.providers import effective_cache_mode, supports_anthropic_blocks
 from learners_mcp.llm.profiles import Profile
+from learners_mcp.llm.providers import effective_cache_mode, supports_anthropic_blocks
 
 
 def test_anthropic_bare():

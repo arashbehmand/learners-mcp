@@ -19,7 +19,6 @@ from typing import Any, Iterator
 from .config import db_path, ensure_data_dir
 from .flashcards.sm2 import CardState
 
-
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS materials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -222,7 +221,14 @@ class DB:
             cur = conn.execute(
                 "INSERT INTO materials(title, source_type, source_ref, content_hash, created_at, ingestion_status) "
                 "VALUES (?,?,?,?,?,?)",
-                (title, source_type, source_ref, hash_, _iso(datetime.now(timezone.utc)), "{}"),
+                (
+                    title,
+                    source_type,
+                    source_ref,
+                    hash_,
+                    _iso(datetime.now(timezone.utc)),
+                    "{}",
+                ),
             )
             return int(cur.lastrowid)
 
@@ -286,8 +292,16 @@ class DB:
             ).fetchall()
         return [_row_to_section(r) for r in rows]
 
-    def update_section_field(self, section_id: int, field_name: str, value: Any) -> None:
-        allowed = {"rolling_summary", "notes", "focus_brief", "current_phase", "completed_at"}
+    def update_section_field(
+        self, section_id: int, field_name: str, value: Any
+    ) -> None:
+        allowed = {
+            "rolling_summary",
+            "notes",
+            "focus_brief",
+            "current_phase",
+            "completed_at",
+        }
         if field_name not in allowed:
             raise ValueError(f"field '{field_name}' not updatable")
         if field_name == "focus_brief" and value is not None:

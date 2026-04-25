@@ -73,9 +73,7 @@ def format_known_concepts_block(known: list[dict[str, Any]]) -> str:
         "",
     ]
     for m in known:
-        lines.append(
-            f"### {m['material_title']} ({m['maturity']}, {m['progress']})"
-        )
+        lines.append(f"### {m['material_title']} ({m['maturity']}, {m['progress']})")
         for c in m["concepts"]:
             lines.append(f"- **{c['name']}**: {c['gloss']}")
         lines.append("")

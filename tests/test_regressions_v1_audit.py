@@ -13,7 +13,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -79,7 +78,7 @@ async def test_qa_section_scope_with_id_is_narrow(tmp_path):
 async def test_qa_includes_rolling_summary_when_present(tmp_path):
     db = _mk_db(tmp_path)
     mid = db.create_material("Doc", "txt", None, content_hash("q3"))
-    s1 = db.create_section(mid, "A", "section a body", 1)
+    db.create_section(mid, "A", "section a body", 1)
     s2 = db.create_section(mid, "B", "section b body", 2)
     db.update_section_field(s2, "rolling_summary", "ROLLING_TOKEN spans §1 and §2.")
 
@@ -129,8 +128,12 @@ def test_material_progress_reports_time_spent(tmp_path):
 
     t0 = datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
     t1 = datetime(2026, 1, 1, 10, 45, 0, tzinfo=timezone.utc)  # +45 min
-    db.update_phase_data(sid, "preview", {"response": "first", "updated_at": t0.isoformat()})
-    db.update_phase_data(sid, "explain", {"response": "second", "updated_at": t1.isoformat()})
+    db.update_phase_data(
+        sid, "preview", {"response": "first", "updated_at": t0.isoformat()}
+    )
+    db.update_phase_data(
+        sid, "explain", {"response": "second", "updated_at": t1.isoformat()}
+    )
 
     stats = material_progress(db, mid)
     assert stats["time_spent_seconds"] == 45 * 60
@@ -143,7 +146,9 @@ def test_material_progress_last_activity_sees_phase_edits_without_completion(tmp
     mid = db.create_material("Doc", "txt", None, content_hash("p2"))
     sid = db.create_section(mid, "A", "body", 1)
     t0 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-    db.update_phase_data(sid, "preview", {"response": "x", "updated_at": t0.isoformat()})
+    db.update_phase_data(
+        sid, "preview", {"response": "x", "updated_at": t0.isoformat()}
+    )
 
     stats = material_progress(db, mid)
     assert stats["last_activity"] is not None
@@ -158,9 +163,7 @@ def test_material_progress_last_activity_sees_flashcard_reviews(tmp_path):
     fid = db.create_flashcard(mid, sid, "Q", "A")
     # Apply a review: review_count=1 and next_review is in the future.
     future = datetime.now(timezone.utc) + timedelta(days=2)
-    db.apply_review(
-        fid, CardState(2.5, 2, 1, future, False)
-    )
+    db.apply_review(fid, CardState(2.5, 2, 1, future, False))
     stats = material_progress(db, mid)
     assert stats["last_activity"] is not None
     # next_review is the most recent activity.
@@ -184,7 +187,9 @@ async def test_extract_notes_now_delegates_to_notes_scope(tmp_path, monkeypatch)
     """The new tool must invoke prepare_material with scope='notes'."""
     monkeypatch.setenv("LEARNERS_MCP_DATA_DIR", str(tmp_path))
     import importlib
+
     import learners_mcp.server as server_mod
+
     importlib.reload(server_mod)
 
     captured: dict = {}

@@ -30,7 +30,9 @@ def test_build_all_phases():
         "explain": {"response": "High-level, simple syntax."},
         "question": {"response": "How does it compare to Ruby?"},
     }
-    ctx = build_learning_context(section_content="Python content", phase_data=phase_data)
+    ctx = build_learning_context(
+        section_content="Python content", phase_data=phase_data
+    )
     assert ctx["preview"] == "Python seems easy."
     assert ctx["explain"] == "High-level, simple syntax."
     assert ctx["question"] == "How does it compare to Ruby?"

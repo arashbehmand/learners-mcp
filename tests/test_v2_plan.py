@@ -33,7 +33,9 @@ def test_plan_schedules_all_sections(tmp_path):
     plan = plan_study(
         db, mid, start_date=date(2026, 1, 5), days_per_week=5, minutes_per_session=60
     )
-    scheduled_ids = [sid for session in plan["sessions"] for sid in session["section_ids"]]
+    scheduled_ids = [
+        sid for session in plan["sessions"] for sid in session["section_ids"]
+    ]
     assert len(scheduled_ids) == 4
     assert plan["sessions"][0]["day"] == "2026-01-05"
     # With 25-minute sections and a 60-minute budget, 2 sections per session.
@@ -42,12 +44,15 @@ def test_plan_schedules_all_sections(tmp_path):
 
 def test_plan_skips_completed_sections(tmp_path):
     from datetime import datetime, timezone
+
     db = _mk_db(tmp_path)
     mid = _seed(db, 3, hash_seed="pl2")
     sections = db.get_sections(mid)
     db.update_section_field(sections[0].id, "completed_at", datetime.now(timezone.utc))
     plan = plan_study(db, mid, start_date=date(2026, 1, 5))
-    scheduled_ids = [sid for session in plan["sessions"] for sid in session["section_ids"]]
+    scheduled_ids = [
+        sid for session in plan["sessions"] for sid in session["section_ids"]
+    ]
     assert sections[0].id not in scheduled_ids
     assert len(scheduled_ids) == 2
 
@@ -58,7 +63,13 @@ def test_plan_respects_suggested_path_from_map(tmp_path):
     # Suggest reverse order.
     db.upsert_learning_map(
         mid,
-        {"suggested_path": [{"section_ids": [3]}, {"section_ids": [2]}, {"section_ids": [1]}]},
+        {
+            "suggested_path": [
+                {"section_ids": [3]},
+                {"section_ids": [2]},
+                {"section_ids": [1]},
+            ]
+        },
         "# m",
     )
     sections = {s.order_index: s for s in db.get_sections(mid)}

@@ -9,12 +9,8 @@
 
 from __future__ import annotations
 
-import json
-import os
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-
-import pytest
 
 from learners_mcp.db import DB, content_hash
 from learners_mcp.flashcards.service import review_flashcard as svc_review
@@ -121,6 +117,7 @@ def test_apply_review_does_not_log_event(tmp_path):
     fid = db.create_flashcard(mid, sid, "Q", "A")
 
     from learners_mcp.flashcards.sm2 import CardState
+
     db.apply_review(fid, CardState(2.5, 1, 1, datetime.now(timezone.utc), False))
     assert db.list_review_events(flashcard_id=fid) == []
 
@@ -132,7 +129,7 @@ def test_unstudied_prereq_forces_review_required(tmp_path):
     """If §1 was never studied, §2 cannot be 'ready' — even with no flashcards."""
     db = _mk_db(tmp_path)
     mid = db.create_material("Doc", "txt", None, content_hash("pr1"))
-    s1 = db.create_section(mid, "A", "body", 1)
+    db.create_section(mid, "A", "body", 1)
     s2 = db.create_section(mid, "B", "body", 2)
     db.upsert_learning_map(
         mid,
@@ -214,7 +211,9 @@ def test_no_model_constants_imported():
                 names = [alias.name for alias in node.names]
                 found = forbidden & set(names)
                 if found:
-                    violations.append(f"{py_file.relative_to(src_root)}: imports {found}")
+                    violations.append(
+                        f"{py_file.relative_to(src_root)}: imports {found}"
+                    )
 
     assert not violations, "Forbidden MODEL_* imports found:\n" + "\n".join(violations)
 
@@ -227,6 +226,7 @@ def test_llm_calls_use_valid_tasks():
     whose value is a string literal that appears in TASKS."""
     import ast
     import pathlib
+
     from learners_mcp.llm.profiles import TASKS
 
     src_root = pathlib.Path(__file__).parent.parent / "src" / "learners_mcp"
@@ -243,19 +243,30 @@ def test_llm_calls_use_valid_tasks():
                 continue
             # Match llm.complete(...) or llm.complete_json(...)
             func = node.func
-            if not (isinstance(func, ast.Attribute) and func.attr in ("complete", "complete_json")):
+            if not (
+                isinstance(func, ast.Attribute)
+                and func.attr in ("complete", "complete_json")
+            ):
                 continue
             # Find the task= keyword argument
             task_kw = next((kw for kw in node.keywords if kw.arg == "task"), None)
             if task_kw is None:
-                violations.append(f"{py_file.name}:{node.lineno} — complete() missing task= kwarg")
+                violations.append(
+                    f"{py_file.name}:{node.lineno} — complete() missing task= kwarg"
+                )
                 continue
             # The value should be a string literal
-            if not isinstance(task_kw.value, ast.Constant) or not isinstance(task_kw.value.value, str):
-                violations.append(f"{py_file.name}:{node.lineno} — task= is not a string literal")
+            if not isinstance(task_kw.value, ast.Constant) or not isinstance(
+                task_kw.value.value, str
+            ):
+                violations.append(
+                    f"{py_file.name}:{node.lineno} — task= is not a string literal"
+                )
                 continue
             task_name = task_kw.value.value
             if task_name not in TASKS:
-                violations.append(f"{py_file.name}:{node.lineno} — unknown task {task_name!r} (valid: {sorted(TASKS)})")
+                violations.append(
+                    f"{py_file.name}:{node.lineno} — unknown task {task_name!r} (valid: {sorted(TASKS)})"
+                )
 
     assert not violations, "LLM call site issues:\n" + "\n".join(violations)

@@ -1,10 +1,12 @@
 """Tests that zero-config (Anthropic-backed via litellm) works correctly."""
+
 import os
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from learners_mcp.llm.client import LLM
-from learners_mcp.llm.profiles import resolve, BUILT_IN_PROFILES
+from learners_mcp.llm.profiles import resolve
 
 
 def fake_response(content="ok"):
@@ -17,7 +19,11 @@ def fake_response(content="ok"):
 
 def _clear_llm_env(monkeypatch):
     for key in list(os.environ):
-        if key.startswith("LEARNERS_MCP_MODEL_") or key.startswith("LEARNERS_MCP_PARAMS_") or key.startswith("LEARNERS_MCP_ROUTE_"):
+        if (
+            key.startswith("LEARNERS_MCP_MODEL_")
+            or key.startswith("LEARNERS_MCP_PARAMS_")
+            or key.startswith("LEARNERS_MCP_ROUTE_")
+        ):
             monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("LEARNERS_MCP_LLM_CONFIG", "/nonexistent/llm-test-defaults.yaml")
 
@@ -50,7 +56,9 @@ async def test_anthropic_model_uses_caching_blocks(monkeypatch):
         await LLM().complete(
             task="qa",
             system="s",
-            blocks=[{"type": "text", "text": "q", "cache_control": {"type": "ephemeral"}}],
+            blocks=[
+                {"type": "text", "text": "q", "cache_control": {"type": "ephemeral"}}
+            ],
         )
 
     assert captured["messages"][0]["role"] == "user"
@@ -72,7 +80,13 @@ async def test_openai_model_flattens_blocks(monkeypatch):
         await LLM().complete(
             task="qa",
             system="sys",
-            blocks=[{"type": "text", "text": "hello", "cache_control": {"type": "ephemeral"}}],
+            blocks=[
+                {
+                    "type": "text",
+                    "text": "hello",
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
         )
 
     roles = [m["role"] for m in captured["messages"]]

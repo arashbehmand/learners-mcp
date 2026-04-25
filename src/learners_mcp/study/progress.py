@@ -23,7 +23,6 @@ from the timestamps already persisted:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Iterable
 
 from ..db import DB
 
@@ -35,7 +34,9 @@ def material_progress(db: DB, material_id: int) -> dict:
     sections = db.get_sections(material_id)
     cards = db.list_flashcards(material_id=material_id)
     now = datetime.now(timezone.utc)
-    due = [c for c in cards if not c.is_mastered and c.next_review and c.next_review <= now]
+    due = [
+        c for c in cards if not c.is_mastered and c.next_review and c.next_review <= now
+    ]
     mastered = [c for c in cards if c.is_mastered]
 
     completed_sections = [s for s in sections if s.completed_at is not None]

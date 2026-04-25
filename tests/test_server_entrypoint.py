@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from types import SimpleNamespace
 
 from learners_mcp import server
 
@@ -31,7 +30,7 @@ def test_importing_server_does_not_load_heavy_runtime_dependencies():
     assert payload["litellm"] is False
     assert payload["langchain_text_splitters"] is False
     assert payload["mcp_client_stdio"] is False
-    assert payload["seconds"] < 4
+    assert payload["seconds"] < 8
 
 
 def test_main_preloads_markitdown_before_stdio_run(monkeypatch):

@@ -22,7 +22,9 @@ def _seed_material(db: DB, hash_seed: str = "seed") -> int:
     s2 = db.create_section(mid, "Chapter 2", "content 2", 2)
     db.update_section_field(s1, "notes", "# §1 notes")
     db.update_section_field(s1, "rolling_summary", "rolling for §1")
-    db.update_section_field(s2, "focus_brief", {"focus": "core idea", "estimated_minutes": 20})
+    db.update_section_field(
+        s2, "focus_brief", {"focus": "core idea", "estimated_minutes": 20}
+    )
     db.update_phase_data(s1, "preview", {"response": "first thoughts"})
     db.update_phase_data(s1, "explain", {"response": "deep work means..."})
     db.upsert_learning_map(mid, {"objectives": ["focus"], "key_concepts": []}, "# Map")
@@ -31,7 +33,9 @@ def _seed_material(db: DB, hash_seed: str = "seed") -> int:
     fid = db.create_flashcard(mid, s1, "Q1?", "A1")
     now = datetime.now(timezone.utc)
     db.apply_review(fid, CardState(2.6, 5, 2, now + timedelta(days=5), False))
-    db.add_evaluation(s1, "explain", "deep work means...", {"verdict": "solid"}, "# eval")
+    db.add_evaluation(
+        s1, "explain", "deep work means...", {"verdict": "solid"}, "# eval"
+    )
     return mid
 
 

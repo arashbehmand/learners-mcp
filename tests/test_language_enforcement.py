@@ -7,8 +7,8 @@ import pytest
 from learners_mcp.db import DB, content_hash
 from learners_mcp.export.artifacts import export_material_artifacts
 from learners_mcp.ingestion.pipeline import preparation_status
-from learners_mcp.llm.prompts import LANGUAGE_POLICY_VERSION
 from learners_mcp.language import detect_source_language
+from learners_mcp.llm.prompts import LANGUAGE_POLICY_VERSION
 
 
 def _mk_db(tmp_path: Path) -> DB:
@@ -96,7 +96,9 @@ async def test_prepare_regenerates_stale_language_policy_artifacts(
     assert calls == ["map", "focus", "notes"]
     status = db.get_material(mid).ingestion_status
     assert status["source_language"]["code"] == "fa"
-    assert status["artifact_language_policy"]["map"]["version"] == LANGUAGE_POLICY_VERSION
+    assert (
+        status["artifact_language_policy"]["map"]["version"] == LANGUAGE_POLICY_VERSION
+    )
     assert (
         status["artifact_language_policy"]["focus_briefs"]["1"]["version"]
         == LANGUAGE_POLICY_VERSION

@@ -17,9 +17,11 @@ def _mk_db(tmp_path: Path) -> DB:
 
 
 def _seed_material(db: DB) -> int:
-    mid = db.create_material("Alice's Adventures", "txt", "alice.txt", content_hash("alice"))
+    mid = db.create_material(
+        "Alice's Adventures", "txt", "alice.txt", content_hash("alice")
+    )
     s1 = db.create_section(mid, "Down the Rabbit-Hole", "RAW SOURCE BODY SECRET", 1)
-    s2 = db.create_section(mid, "Pool of Tears", "MORE RAW SOURCE BODY", 2)
+    db.create_section(mid, "Pool of Tears", "MORE RAW SOURCE BODY", 2)
     db.upsert_learning_map(
         mid,
         {"objectives": ["Understand Wonderland logic"], "suggested_path": []},
@@ -32,7 +34,9 @@ def _seed_material(db: DB) -> int:
     )
     db.update_section_field(s1, "notes", "# Notes\n\nAlice loses control of scale.")
     db.update_phase_data(s1, "preview", {"response": "Rules will break."})
-    db.update_section_field(s1, "rolling_summary", "Alice enters a strange logic-space.")
+    db.update_section_field(
+        s1, "rolling_summary", "Alice enters a strange logic-space."
+    )
     db.create_flashcard(mid, s1, "What breaks first?", "Ordinary physical rules. [§1]")
     db.upsert_completion_report(s1, "# Completion\n\nPreview done.")
     db.add_evaluation(
@@ -77,7 +81,9 @@ def test_json_export_is_explicit_and_separate(tmp_path):
     db = _mk_db(tmp_path)
     mid = _seed_material(db)
 
-    result = export_material_artifacts(db, mid, output_dir=tmp_path / "out", format="json")
+    result = export_material_artifacts(
+        db, mid, output_dir=tmp_path / "out", format="json"
+    )
 
     artifact_dir = Path(result["artifact_dir"])
     json_dir = artifact_dir / "json"

@@ -89,7 +89,9 @@ def export_material_artifacts(
     if format in {"markdown", "all"}:
         updated.extend(_write_markdown_artifacts(db, material_id, target, study_plan))
     if format in {"json", "all"}:
-        updated.extend(_write_json_artifacts(db, material_id, target / "json", study_plan))
+        updated.extend(
+            _write_json_artifacts(db, material_id, target / "json", study_plan)
+        )
 
     return {
         "ok": True,
@@ -105,7 +107,8 @@ def material_artifact_dir(db: DB, material_id: int, root: Path | None = None) ->
         raise KeyError(f"material {material_id} not found")
     base = slugify(material.title) or f"material-{material_id}"
     same_slug = [
-        m.id for m in sorted(db.list_materials(), key=lambda item: item.id)
+        m.id
+        for m in sorted(db.list_materials(), key=lambda item: item.id)
         if (slugify(m.title) or f"material-{m.id}") == base
     ]
     if same_slug and same_slug[0] != material_id:
@@ -160,7 +163,9 @@ def _write_json_artifacts(
     out: list[Path] = []
     for filename in JSON_FILES:
         path = target / filename
-        _atomic_write_text(path, json.dumps(payloads[filename], indent=2), suffix=".tmp")
+        _atomic_write_text(
+            path, json.dumps(payloads[filename], indent=2), suffix=".tmp"
+        )
         out.append(path)
     return out
 
@@ -194,17 +199,28 @@ def _render_sections(db: DB, material_id: int) -> str:
     lines = [f"# {labels['sections']} — {material.title}", ""]
     for s in db.get_sections(material_id):
         phases_done = [
-            phase for phase, blob in (s.phase_data or {}).items()
+            phase
+            for phase, blob in (s.phase_data or {}).items()
             if blob.get("completed_at")
         ]
-        lines.append(f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}")
+        lines.append(
+            f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}"
+        )
         lines.append("")
         lines.append(f"- {labels['section_id']}: {s.id}")
         lines.append(f"- {labels['current_phase']}: {s.current_phase}")
-        lines.append(f"- {labels['focus_brief']}: {labels['ready'] if s.focus_brief else labels['pending']}")
-        lines.append(f"- {labels['notes']}: {labels['ready'] if s.notes else labels['pending']}")
-        lines.append(f"- {labels['rolling_summary']}: {labels['ready'] if s.rolling_summary else labels['pending']}")
-        lines.append(f"- {labels['completed_phases']}: {', '.join(phases_done) if phases_done else labels['none']}")
+        lines.append(
+            f"- {labels['focus_brief']}: {labels['ready'] if s.focus_brief else labels['pending']}"
+        )
+        lines.append(
+            f"- {labels['notes']}: {labels['ready'] if s.notes else labels['pending']}"
+        )
+        lines.append(
+            f"- {labels['rolling_summary']}: {labels['ready'] if s.rolling_summary else labels['pending']}"
+        )
+        lines.append(
+            f"- {labels['completed_phases']}: {', '.join(phases_done) if phases_done else labels['none']}"
+        )
         lines.append("")
     return "\n".join(lines)
 
@@ -245,7 +261,9 @@ def _render_notes(db: DB, material_id: int) -> str:
     labels = _labels(_material_language_code(db, material_id))
     parts = [f"# {labels['notes']} — {material.title}"]
     for s in db.get_sections(material_id):
-        parts.append(f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}")
+        parts.append(
+            f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}"
+        )
         parts.append(s.notes or labels["pending_notes"])
     return "\n\n".join(parts).rstrip() + "\n"
 
@@ -273,7 +291,9 @@ def _render_phase_responses(db: DB, material_id: int) -> str:
     labels = _labels(_material_language_code(db, material_id))
     parts = [f"# {labels['phase_responses']} — {material.title}"]
     for s in db.get_sections(material_id):
-        parts.append(f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}")
+        parts.append(
+            f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}"
+        )
         if not s.phase_data:
             parts.append(labels["no_recorded_responses"])
             continue
@@ -291,7 +311,9 @@ def _render_rolling_summaries(db: DB, material_id: int) -> str:
     labels = _labels(_material_language_code(db, material_id))
     parts = [f"# {labels['rolling_summaries']} — {material.title}"]
     for s in db.get_sections(material_id):
-        parts.append(f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}")
+        parts.append(
+            f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}"
+        )
         parts.append(s.rolling_summary or f"{labels['pending']}.")
     return "\n\n".join(parts).rstrip() + "\n"
 
@@ -339,7 +361,9 @@ def _render_completion_reports(db: DB, material_id: int) -> str:
         report = db.get_completion_report(s.id)
         if report:
             any_report = True
-            parts.append(f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}")
+            parts.append(
+                f"## §{s.order_index}: {s.title or labels['untitled_parenthesized']}"
+            )
             parts.append(report[0])
     if not any_report:
         parts.append(labels["no_completion_reports"])
@@ -372,7 +396,12 @@ def _json_payloads(
     sections = db.get_sections(material_id)
     learning_map = db.get_learning_map(material_id)
     focus_briefs = [
-        {"section_id": s.id, "order_index": s.order_index, "title": s.title, "brief": s.focus_brief}
+        {
+            "section_id": s.id,
+            "order_index": s.order_index,
+            "title": s.title,
+            "brief": s.focus_brief,
+        }
         for s in sections
     ]
     section_payloads = [
@@ -438,7 +467,9 @@ def _json_payloads(
                 "source_type": material.source_type,
                 "source_ref": material.source_ref,
                 "content_hash": material.content_hash,
-                "created_at": material.created_at.isoformat() if material.created_at else None,
+                "created_at": (
+                    material.created_at.isoformat() if material.created_at else None
+                ),
                 "ingestion_status": material.ingestion_status,
             },
             "artifact_files": list(JSON_FILES),
@@ -446,7 +477,9 @@ def _json_payloads(
         "learning-map.json": {
             "map": learning_map.map_json if learning_map else None,
             "markdown": learning_map.map_markdown if learning_map else None,
-            "generated_at": learning_map.generated_at.isoformat() if learning_map else None,
+            "generated_at": (
+                learning_map.generated_at.isoformat() if learning_map else None
+            ),
         },
         "focus-briefs.json": focus_briefs,
         "sections.json": section_payloads,

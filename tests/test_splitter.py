@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from learners_mcp.ingestion.splitter import (
-    HierarchicalSplitter,
-    split_into_sections,
-)
+from learners_mcp.ingestion.splitter import HierarchicalSplitter, split_into_sections
 
 
 def test_plain_text_single_section():
@@ -44,7 +41,9 @@ def test_large_section_split_into_chunks():
     sections = split_into_sections(text, min_size=500, max_size=4_000)
     # Should split the big middle section into multiple parts.
     part_titles = [t for _, t in sections if t and "Part" in t]
-    assert part_titles, f"expected Part-marked sub-sections, got titles: {[t for _, t in sections]}"
+    assert (
+        part_titles
+    ), f"expected Part-marked sub-sections, got titles: {[t for _, t in sections]}"
 
 
 def test_fallback_chunking_when_no_recognizable_sections():

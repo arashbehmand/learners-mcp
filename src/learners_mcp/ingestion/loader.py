@@ -17,7 +17,6 @@ import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 
-
 TEXT_SUFFIXES = {".txt", ".md", ".markdown"}
 SUPPORTED_SUFFIXES = {".pdf", ".epub", ".docx", *TEXT_SUFFIXES}
 
@@ -47,7 +46,9 @@ def load_text(raw: str, title: str) -> LoadedMaterial:
     """Ingest raw pasted text directly."""
     if not raw.strip():
         raise ValueError("raw text is empty")
-    return LoadedMaterial(title=title, text=raw, source_type="text", source_ref="(pasted)")
+    return LoadedMaterial(
+        title=title, text=raw, source_type="text", source_ref="(pasted)"
+    )
 
 
 def preload_markitdown(source: str | None = None) -> None:
@@ -117,7 +118,9 @@ def _load_youtube(url: str, title: str | None) -> LoadedMaterial:
     """Fetch a YouTube transcript via youtube-transcript-api."""
     try:
         # Newer API (v1.x): YouTubeTranscriptApi().fetch(video_id)
-        from youtube_transcript_api import YouTubeTranscriptApi  # type: ignore[import-not-found]
+        from youtube_transcript_api import (
+            YouTubeTranscriptApi,
+        )  # type: ignore[import-not-found]
     except ImportError as e:
         raise RuntimeError(
             "YouTube ingestion needs the `youtube-transcript-api` package. "

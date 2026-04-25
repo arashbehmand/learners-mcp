@@ -12,13 +12,13 @@ from unittest.mock import patch
 
 import pytest
 
+import learners_mcp.ingestion.loader as loader_mod
 from learners_mcp.ingestion.loader import (
     _looks_like_youtube,
     _youtube_video_id,
     load,
     load_text,
 )
-import learners_mcp.ingestion.loader as loader_mod
 
 
 def test_looks_like_youtube_detects_hosts():

@@ -14,8 +14,12 @@ def _mk_db(tmp_path: Path) -> DB:
 
 
 def _seed_material(db: DB) -> tuple[int, int]:
-    mid = db.create_material("Compaction Test", "txt", "compaction.txt", content_hash("compact"))
-    long_section = ("This is a long source sentence about arguments and fallacies. " * 180).strip()
+    mid = db.create_material(
+        "Compaction Test", "txt", "compaction.txt", content_hash("compact")
+    )
+    long_section = (
+        "This is a long source sentence about arguments and fallacies. " * 180
+    ).strip()
     sid = db.create_section(mid, "Opening", long_section, 1)
     db.upsert_learning_map(
         mid,
@@ -46,15 +50,16 @@ def _seed_material(db: DB) -> tuple[int, int]:
     db.update_section_field(
         sid,
         "notes",
-        "# Notes\n\n"
-        + ("A concise learner note about arguments and evidence.\n" * 80),
+        "# Notes\n\n" + ("A concise learner note about arguments and evidence.\n" * 80),
     )
     db.update_section_field(
         sid,
         "rolling_summary",
         "The learner has not yet built prior context; this is the opening section.",
     )
-    db.update_phase_data(sid, "preview", {"response": "I expect weak support and hidden assumptions."})
+    db.update_phase_data(
+        sid, "preview", {"response": "I expect weak support and hidden assumptions."}
+    )
     return mid, sid
 
 
@@ -125,12 +130,19 @@ async def test_start_section_returns_preview_and_links_instead_of_full_body(
 
     assert isinstance(result, CallToolResult)
     text = _text(result)
-    assert "Preferred study order from here: preview -> explain -> question -> anchor." in text
+    assert (
+        "Preferred study order from here: preview -> explain -> question -> anchor."
+        in text
+    )
     assert "Section preview:" in text
     assert len(text) < 2500
-    assert ("This is a long source sentence about arguments and fallacies. " * 20) not in text
+    assert (
+        "This is a long source sentence about arguments and fallacies. " * 20
+    ) not in text
     assert result.structuredContent is not None
-    assert result.structuredContent["content"].startswith("This is a long source sentence")
+    assert result.structuredContent["content"].startswith(
+        "This is a long source sentence"
+    )
     uris = _resource_uris(result)
     assert f"section://{sid}" in uris
     assert f"section-state://{sid}" in uris

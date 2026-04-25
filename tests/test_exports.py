@@ -38,7 +38,7 @@ def test_export_csv_round_trips(tmp_path):
     out = tmp_path / "cards.csv"
     cards = [
         {"question": "Q1", "answer": "A1"},
-        {"question": "Q, with comma", "answer": "A\"with quote"},
+        {"question": "Q, with comma", "answer": 'A"with quote'},
     ]
     n = export_csv(cards, out)
     assert n == 2
@@ -54,7 +54,7 @@ def test_export_notes_markdown(tmp_path):
     db = _mk_db(tmp_path)
     mid = db.create_material("Book", "txt", None, content_hash("x"))
     s1 = db.create_section(mid, "Chapter 1", "c1 body", 1)
-    s2 = db.create_section(mid, "Chapter 2", "c2 body", 2)
+    db.create_section(mid, "Chapter 2", "c2 body", 2)
     db.update_section_field(s1, "notes", "# §1 notes\n\ndetails")
     # Second section's notes deliberately pending.
     out = tmp_path / "notes.md"

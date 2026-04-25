@@ -4,25 +4,26 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 import yaml
 
 from ..config import llm_config_path
 
-TASKS: frozenset[str] = frozenset({
-    "notes_map",
-    "notes_tldr",
-    "notes_reduce",
-    "notes_polish",
-    "focus_brief",
-    "learning_map",
-    "rolling_summary",
-    "qa",
-    "phase_evaluation",
-    "completion_report",
-    "flashcards",
-})
+TASKS: frozenset[str] = frozenset(
+    {
+        "notes_map",
+        "notes_tldr",
+        "notes_reduce",
+        "notes_polish",
+        "focus_brief",
+        "learning_map",
+        "rolling_summary",
+        "qa",
+        "phase_evaluation",
+        "completion_report",
+        "flashcards",
+    }
+)
 
 
 @dataclass
@@ -71,7 +72,9 @@ def load_config() -> tuple[dict[str, Profile], dict[str, str]]:
     routes: dict[str, str] = dict(BUILT_IN_ROUTES)
 
     config_path_override = os.environ.get("LEARNERS_MCP_LLM_CONFIG")
-    config_file = Path(config_path_override) if config_path_override else llm_config_path()
+    config_file = (
+        Path(config_path_override) if config_path_override else llm_config_path()
+    )
 
     if config_file.exists():
         with open(config_file) as f:
@@ -109,9 +112,7 @@ def load_config() -> tuple[dict[str, Profile], dict[str, str]]:
 
 def resolve(task: str) -> Profile:
     if task not in TASKS:
-        raise ValueError(
-            f"Unknown task {task!r}. Available tasks: {sorted(TASKS)}"
-        )
+        raise ValueError(f"Unknown task {task!r}. Available tasks: {sorted(TASKS)}")
     profiles, routes = load_config()
     profile_name = routes[task]
     if profile_name not in profiles:

@@ -29,7 +29,11 @@ def test_gather_excludes_current_material(tmp_path):
     )
     db.upsert_learning_map(
         mid2,
-        {"key_concepts": [{"name": "Gradient descent", "why_load_bearing": "optimization"}]},
+        {
+            "key_concepts": [
+                {"name": "Gradient descent", "why_load_bearing": "optimization"}
+            ]
+        },
         "# m2",
     )
 

@@ -1,14 +1,17 @@
-import json
 import os
-import pytest
-from pathlib import Path
 
-from learners_mcp.llm.profiles import resolve, TASKS
+import pytest
+
+from learners_mcp.llm.profiles import resolve
 
 
 def _clear_llm_env(monkeypatch):
     for key in list(os.environ):
-        if key.startswith("LEARNERS_MCP_MODEL_") or key.startswith("LEARNERS_MCP_PARAMS_") or key.startswith("LEARNERS_MCP_ROUTE_"):
+        if (
+            key.startswith("LEARNERS_MCP_MODEL_")
+            or key.startswith("LEARNERS_MCP_PARAMS_")
+            or key.startswith("LEARNERS_MCP_ROUTE_")
+        ):
             monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("LEARNERS_MCP_LLM_CONFIG", "/nonexistent/llm-test-defaults.yaml")
 
@@ -64,11 +67,7 @@ def test_route_to_missing_profile_raises(monkeypatch):
 def test_yaml_config_loading(tmp_path, monkeypatch):
     config_file = tmp_path / "llm.yaml"
     config_file.write_text(
-        "profiles:\n"
-        "  custom:\n"
-        "    model: gpt-4.1-mini\n"
-        "routes:\n"
-        "  qa: custom\n"
+        "profiles:\n  custom:\n    model: gpt-4.1-mini\nroutes:\n  qa: custom\n"
     )
     monkeypatch.setenv("LEARNERS_MCP_LLM_CONFIG", str(config_file))
     assert resolve("qa").model == "gpt-4.1-mini"

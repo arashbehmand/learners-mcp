@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 PHASES = ("preview", "explain", "question", "anchor")
 
 
@@ -86,13 +85,19 @@ def format_context_for_flashcards(context: dict[str, Any]) -> str:
 
     cards = context.get("flashcards") or []
     if cards:
-        parts.extend(_divider(f"EXISTING FLASHCARDS ({len(cards)} cards - DO NOT DUPLICATE)"))
+        parts.extend(
+            _divider(f"EXISTING FLASHCARDS ({len(cards)} cards - DO NOT DUPLICATE)")
+        )
         for i, card in enumerate(cards, 1):
             parts.append(f"\n{i}. Q: {card['question']}")
             parts.append(f"   A: {card['answer']}")
         parts.append("")
-        parts.append("Generate DIFFERENT flashcards covering new aspects not in the list above.")
-        parts.append("Each flashcard Q/A should reference the source section in its answer, e.g. '[§N]'.")
+        parts.append(
+            "Generate DIFFERENT flashcards covering new aspects not in the list above."
+        )
+        parts.append(
+            "Each flashcard Q/A should reference the source section in its answer, e.g. '[§N]'."
+        )
         parts.append("")
 
     return "\n".join(parts)

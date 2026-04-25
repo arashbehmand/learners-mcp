@@ -50,10 +50,14 @@ def _extract_text(resp: Any) -> str:
         return _THINK_RE.sub("", content).strip()
     parts: list[str] = []
     for block in content:
-        block_type = getattr(block, "type", None) or (block.get("type") if isinstance(block, dict) else None)
+        block_type = getattr(block, "type", None) or (
+            block.get("type") if isinstance(block, dict) else None
+        )
         if block_type in _THINKING_TYPES:
             continue
-        text = getattr(block, "text", None) or (block.get("text") if isinstance(block, dict) else None)
+        text = getattr(block, "text", None) or (
+            block.get("text") if isinstance(block, dict) else None
+        )
         if text:
             parts.append(text)
     joined = "".join(parts)

@@ -33,7 +33,9 @@ async def suggest_flashcards(
         raise KeyError(f"section {section_id} not found")
 
     committed = db.list_flashcards(section_id=section_id)
-    committed_payload = [{"question": f.question, "answer": f.answer} for f in committed]
+    committed_payload = [
+        {"question": f.question, "answer": f.answer} for f in committed
+    ]
 
     context = build_learning_context(
         section_content=section.content,

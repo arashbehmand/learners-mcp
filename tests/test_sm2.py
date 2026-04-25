@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 
 from learners_mcp.flashcards.sm2 import CardState, initial_state, review
 
-
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 

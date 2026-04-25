@@ -171,12 +171,12 @@ class HierarchicalSplitter:
                 if pattern.startswith(r"^\["):
                     next_lines = lines[i + 1 : i + 10]
                     link_count = sum(
-                        1 for l in next_lines if re.match(r"^\[.*\]\(.*\)", l.strip())
+                        1 for ln in next_lines if re.match(r"^\[.*\]\(.*\)", ln.strip())
                     )
                     text_count = sum(
                         1
-                        for l in next_lines
-                        if l.strip() and not re.match(r"^\[.*\]\(.*\)", l.strip())
+                        for ln in next_lines
+                        if ln.strip() and not re.match(r"^\[.*\]\(.*\)", ln.strip())
                     )
                     if link_count > text_count and link_count > 2:
                         continue
@@ -219,12 +219,17 @@ class HierarchicalSplitter:
 
             if len(content) < min_size and sections:
                 prev_content, prev_title = sections[-1]
-                sections[-1] = (prev_content + "\n\n" + content, prev_title or cleaned_title)
+                sections[-1] = (
+                    prev_content + "\n\n" + content,
+                    prev_title or cleaned_title,
+                )
                 continue
 
             if len(content) > max_size:
                 for j, chunk in enumerate(splitter.split_text(content)):
-                    chunk_title = f"{cleaned_title} (Part {j + 1})" if cleaned_title else None
+                    chunk_title = (
+                        f"{cleaned_title} (Part {j + 1})" if cleaned_title else None
+                    )
                     sections.append((chunk, chunk_title))
             else:
                 sections.append((content, cleaned_title))

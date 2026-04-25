@@ -16,12 +16,11 @@ must delete the existing one first to avoid ambiguity.
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from ..db import DB, content_hash as _hash
+from ..db import DB
 
 EXPORT_VERSION = 2
 
@@ -139,7 +138,9 @@ def import_project(db: DB, input_path: Path) -> dict[str, Any]:
 
         # Restore optional state.
         if s_dict.get("rolling_summary"):
-            db.update_section_field(new_sid, "rolling_summary", s_dict["rolling_summary"])
+            db.update_section_field(
+                new_sid, "rolling_summary", s_dict["rolling_summary"]
+            )
         if s_dict.get("notes"):
             db.update_section_field(new_sid, "notes", s_dict["notes"])
         if s_dict.get("focus_brief"):

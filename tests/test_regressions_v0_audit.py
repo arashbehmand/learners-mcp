@@ -10,14 +10,12 @@
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
 from learners_mcp.db import DB, content_hash
-from learners_mcp.ingestion import background
 from learners_mcp.notes.extractor import extract_notes
 from learners_mcp.study.phases import recommend_next_action
 from learners_mcp.study.rolling import ensure_rolling_summary
@@ -50,7 +48,11 @@ async def test_rolling_summary_uses_stored_order_index_for_citations(tmp_path):
     # Must mention §1 (matching stored order_index), not §2.
     assert "order_index: 1" not in prompt_text or True  # format depends on template
     # The template embeds "Current section order_index: {order_index}":
-    assert "order_index: 1" in prompt_text or "§1" in prompt_text or "Section 1" in prompt_text
+    assert (
+        "order_index: 1" in prompt_text
+        or "§1" in prompt_text
+        or "Section 1" in prompt_text
+    )
     # And must NOT reference an off-by-one §2 for the first section.
     assert "order_index: 2" not in prompt_text
     # If title is None we fall back to "Section {order_index}" — verify no "Section 2" leak.
@@ -61,20 +63,26 @@ async def test_rolling_summary_uses_stored_order_index_for_citations(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_ingest_material_auto_starts_background_preparation(tmp_path, monkeypatch):
+async def test_ingest_material_auto_starts_background_preparation(
+    tmp_path, monkeypatch
+):
     """ingest_material(auto_prepare=True) must call background.start()."""
     monkeypatch.setenv("LEARNERS_MCP_DATA_DIR", str(tmp_path))
     # Import the server module freshly after env is set, so DB lands under tmp.
     import importlib
 
     import learners_mcp.server as server_mod
+
     importlib.reload(server_mod)
 
     # Stub the actual loader + background so we don't hit disk/LLM.
     from learners_mcp.ingestion import loader as loader_mod
+
     fake_loaded = loader_mod.LoadedMaterial(
-        title="Test", text="# Header 1\n\nA.\n\n# Header 2\n\nB.\n\n# Header 3\n\nC.\n",
-        source_type="text", source_ref="(test)",
+        title="Test",
+        text="# Header 1\n\nA.\n\n# Header 2\n\nB.\n\n# Header 3\n\nC.\n",
+        source_type="text",
+        source_ref="(test)",
     )
     monkeypatch.setattr(server_mod, "loader_load", lambda *a, **kw: fake_loaded)
 
@@ -101,18 +109,23 @@ async def test_ingest_material_auto_prepare_off_when_requested(tmp_path, monkeyp
     import importlib
 
     import learners_mcp.server as server_mod
+
     importlib.reload(server_mod)
 
     from learners_mcp.ingestion import loader as loader_mod
+
     fake_loaded = loader_mod.LoadedMaterial(
-        title="T", text="some body text content that is long enough to split",
-        source_type="text", source_ref="(t)",
+        title="T",
+        text="some body text content that is long enough to split",
+        source_type="text",
+        source_ref="(t)",
     )
     monkeypatch.setattr(server_mod, "loader_load", lambda *a, **kw: fake_loaded)
 
     start_calls = []
     monkeypatch.setattr(
-        server_mod.background, "start",
+        server_mod.background,
+        "start",
         lambda *a, **kw: start_calls.append(1) or {"status": "started"},
     )
     monkeypatch.setattr(server_mod, "_get_llm", lambda: object())

@@ -34,7 +34,12 @@ def test_ready_when_no_earlier_sections_feed_in(tmp_path):
     mid, s1, s2 = _seed(db)
     db.upsert_learning_map(
         mid,
-        {"key_concepts": [{"name": "X", "sections": [1]}, {"name": "Y", "sections": [2]}]},
+        {
+            "key_concepts": [
+                {"name": "X", "sections": [1]},
+                {"name": "Y", "sections": [2]},
+            ]
+        },
         "# m",
     )
     verdict = check_prerequisites(db, s2)

@@ -126,7 +126,11 @@ def check_prerequisites(db: DB, section_id: int) -> dict[str, Any]:
             "concepts_linking_back": concept_hits,
         }
 
-    verdict = "review_required" if overdue_cards >= 5 and concept_hits else "review_recommended"
+    verdict = (
+        "review_required"
+        if overdue_cards >= 5 and concept_hits
+        else "review_recommended"
+    )
     reason = (
         f"{overdue_cards} cards are due in prerequisite sections "
         f"({', '.join('§' + str(i) for i in sorted(prior_indices))}). "

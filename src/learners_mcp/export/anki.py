@@ -18,7 +18,6 @@ from pathlib import Path
 
 import genanki  # type: ignore[import-not-found]
 
-
 # Fixed model id keeps Anki recognising cards across re-exports.
 PECS_MODEL_ID = 1607392319
 

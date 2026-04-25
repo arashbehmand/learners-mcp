@@ -5,7 +5,6 @@ from typing import Any
 
 from lingua import Language, LanguageDetectorBuilder
 
-
 _UNKNOWN_LANGUAGE_NAME = "the source material's dominant language"
 _RIGHT_TO_LEFT = {
     Language.ARABIC,

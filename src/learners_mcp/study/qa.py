@@ -18,13 +18,11 @@ from ..db import DB
 from ..llm.client import LLM, cached_source, plain
 from ..llm.prompts import USER_INTERACTION_LANGUAGE_POLICY
 
-
 ANSWER_SYSTEM = (
     "You answer questions from a learner by drawing on the source material "
     "provided below. ALWAYS include `[§N]` citations when you state a specific "
     "claim — N is the section's order_index. If the material doesn't answer "
-    "the question, say so; don't invent.\n\n"
-    + USER_INTERACTION_LANGUAGE_POLICY
+    "the question, say so; don't invent.\n\n" + USER_INTERACTION_LANGUAGE_POLICY
 )
 
 
@@ -73,7 +71,9 @@ async def answer_from_material(
             + rolling_summary
         )
 
-    user = f"\n\nQuestion: {question}\n\nAnswer from the material, with `[§N]` citations."
+    user = (
+        f"\n\nQuestion: {question}\n\nAnswer from the material, with `[§N]` citations."
+    )
     blocks = context_blocks + plain(user)
 
     return await llm.complete(

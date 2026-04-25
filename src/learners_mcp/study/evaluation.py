@@ -10,7 +10,6 @@ replacement for host coaching.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from ..db import DB
@@ -83,7 +82,9 @@ async def evaluate_phase_response(
     }
 
 
-def _render_evaluation_markdown(analysis: dict[str, Any], order_index: int, phase: str) -> str:
+def _render_evaluation_markdown(
+    analysis: dict[str, Any], order_index: int, phase: str
+) -> str:
     verdict = analysis.get("verdict", "partial")
     out = [f"# Evaluation — §{order_index}, {phase} phase\n"]
     out.append(f"**Verdict:** {verdict}\n")
@@ -99,7 +100,9 @@ def _render_evaluation_markdown(analysis: dict[str, Any], order_index: int, phas
         out.append("\n## Gaps\n")
         for g in gaps:
             sections = ", ".join(f"§{s}" for s in (g.get("sections") or []))
-            out.append(f"- **{g.get('concept', '?')}** ({sections}) — {g.get('evidence', '')}")
+            out.append(
+                f"- **{g.get('concept', '?')}** ({sections}) — {g.get('evidence', '')}"
+            )
 
     misconceptions = analysis.get("misconceptions") or []
     if misconceptions:
