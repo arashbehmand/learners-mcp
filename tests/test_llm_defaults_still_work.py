@@ -1,4 +1,5 @@
 """Tests that zero-config (Anthropic-backed via litellm) works correctly."""
+import os
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
@@ -14,21 +15,31 @@ def fake_response(content="ok"):
     return resp
 
 
-def test_default_qa_profile_is_sonnet():
+def _clear_llm_env(monkeypatch):
+    for key in list(os.environ):
+        if key.startswith("LEARNERS_MCP_MODEL_") or key.startswith("LEARNERS_MCP_PARAMS_") or key.startswith("LEARNERS_MCP_ROUTE_"):
+            monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("LEARNERS_MCP_LLM_CONFIG", "/nonexistent/llm-test-defaults.yaml")
+
+
+def test_default_qa_profile_is_sonnet(monkeypatch):
+    _clear_llm_env(monkeypatch)
     assert resolve("qa").model == "claude-sonnet-4-6"
 
 
-def test_default_learning_map_is_opus():
+def test_default_learning_map_is_opus(monkeypatch):
+    _clear_llm_env(monkeypatch)
     assert resolve("learning_map").model == "claude-opus-4-7"
 
 
-def test_default_notes_map_is_haiku():
+def test_default_notes_map_is_haiku(monkeypatch):
+    _clear_llm_env(monkeypatch)
     assert resolve("notes_map").model == "claude-haiku-4-5-20251001"
 
 
 @pytest.mark.asyncio
-async def test_anthropic_model_uses_caching_blocks():
-    """Anthropic-backed model: blocks passed through as list, not flattened."""
+async def test_anthropic_model_uses_caching_blocks(monkeypatch):
+    _clear_llm_env(monkeypatch)
     captured: dict = {}
 
     async def _fake_completion(*, model, messages, **kwargs):
@@ -48,7 +59,7 @@ async def test_anthropic_model_uses_caching_blocks():
 
 @pytest.mark.asyncio
 async def test_openai_model_flattens_blocks(monkeypatch):
-    """Non-Anthropic model: blocks flattened to string, system sent separately."""
+    _clear_llm_env(monkeypatch)
     monkeypatch.setenv("LEARNERS_MCP_MODEL_DEFAULT", "gpt-4o-mini")
 
     captured: dict = {}

@@ -1,21 +1,32 @@
 import json
+import os
 import pytest
 from pathlib import Path
 
 from learners_mcp.llm.profiles import resolve, TASKS
 
 
-def test_default_resolve_fast_tasks():
+def _clear_llm_env(monkeypatch):
+    for key in list(os.environ):
+        if key.startswith("LEARNERS_MCP_MODEL_") or key.startswith("LEARNERS_MCP_PARAMS_") or key.startswith("LEARNERS_MCP_ROUTE_"):
+            monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("LEARNERS_MCP_LLM_CONFIG", "/nonexistent/llm-test-defaults.yaml")
+
+
+def test_default_resolve_fast_tasks(monkeypatch):
+    _clear_llm_env(monkeypatch)
     profile = resolve("notes_map")
     assert profile.model == "claude-haiku-4-5-20251001"
 
 
-def test_default_resolve_default_tasks():
+def test_default_resolve_default_tasks(monkeypatch):
+    _clear_llm_env(monkeypatch)
     profile = resolve("qa")
     assert profile.model == "claude-sonnet-4-6"
 
 
-def test_default_resolve_oneshot():
+def test_default_resolve_oneshot(monkeypatch):
+    _clear_llm_env(monkeypatch)
     profile = resolve("learning_map")
     assert profile.model == "claude-opus-4-7"
 
@@ -26,21 +37,25 @@ def test_unknown_task_raises():
 
 
 def test_env_override_model(monkeypatch):
+    _clear_llm_env(monkeypatch)
     monkeypatch.setenv("LEARNERS_MCP_MODEL_DEFAULT", "gpt-4o-mini")
     assert resolve("qa").model == "gpt-4o-mini"
 
 
 def test_env_override_params(monkeypatch):
+    _clear_llm_env(monkeypatch)
     monkeypatch.setenv("LEARNERS_MCP_PARAMS_DEFAULT", '{"reasoning_effort":"low"}')
     assert resolve("qa").params == {"reasoning_effort": "low"}
 
 
 def test_env_route_override(monkeypatch):
+    _clear_llm_env(monkeypatch)
     monkeypatch.setenv("LEARNERS_MCP_ROUTE_QA", "fast")
     assert resolve("qa").model == "claude-haiku-4-5-20251001"
 
 
 def test_route_to_missing_profile_raises(monkeypatch):
+    _clear_llm_env(monkeypatch)
     monkeypatch.setenv("LEARNERS_MCP_ROUTE_QA", "nonexistent_profile")
     with pytest.raises(ValueError, match="nonexistent_profile"):
         resolve("qa")
